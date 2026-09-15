@@ -1,0 +1,20 @@
+{
+	"full_name": "Ukrainian",
+	"examples": [
+		{
+			"key": "BAR.OPACITY",
+			"en": "Opacity",
+			"translated": "Прозорість"
+		},
+		{
+			"key": "PANEL.CLOSE",
+			"en": "Close panel",
+			"translated": "Закрити панель"
+		},
+		{
+			"key": "SETTINGS.LEFT_HANDED_MODE",
+			"en": "Left-handed mode",
+			"translated": "Режим для лівшів"
+		}
+	]
+}

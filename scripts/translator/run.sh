@@ -32,3 +32,4 @@ TEMPLATE="ja" bun main.ts
 TEMPLATE="es" bun main.ts
 TEMPLATE="it" bun main.ts
 TEMPLATE="zh_CN" bun main.ts
+TEMPLATE="uk" bun main.ts
