@@ -389,6 +389,8 @@ pub struct PointerState {
     pub space_drag: bool,
     pub space_rotate: bool,
     pub space_reset: bool,
+    pub snap_turn_left: bool,
+    pub snap_turn_right: bool,
     pub click_modifier_right: bool,
     pub click_modifier_middle: bool,
     pub move_mouse: bool,

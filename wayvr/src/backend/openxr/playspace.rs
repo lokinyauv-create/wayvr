@@ -72,6 +72,22 @@ impl PlayspaceMover {
         overlays: &mut OverlayWindowManager<OpenXrOverlayData>,
         app: &mut AppState,
     ) {
+        let mut snap_degrees = 0.0;
+        for pointer in &app.input_state.pointers {
+            if pointer.now.snap_turn_left && !pointer.before.snap_turn_left {
+                snap_degrees = -app.session.config.space_snap_turn_angle;
+                break;
+            }
+            if pointer.now.snap_turn_right && !pointer.before.snap_turn_right {
+                snap_degrees = app.session.config.space_snap_turn_angle;
+                break;
+            }
+        }
+        if snap_degrees != 0.0 {
+            self.snap_turn(app, overlays, snap_degrees);
+            return;
+        }
+
         let Some(monado) = &mut app.monado_state else {
             return; // monado not available
         };
@@ -313,6 +329,46 @@ impl PlayspaceMover {
             let after =
                 Affine3A::from_rotation_translation(pose.orientation.into(), pose.position.into());
             playspace_common::shift_world(overlays, anchor, &before, &after);
+        }
+    }
+
+    // Rotates the playspace around the headset by a fixed angle, so the user stays
+    // put and the world turns. Negative degrees turn the user's view to the left.
+    pub fn snap_turn(
+        &mut self,
+        app: &mut AppState,
+        overlays: &mut OverlayWindowManager<OpenXrOverlayData>,
+        degrees: f32,
+    ) {
+        let Some(monado) = &mut app.monado_state else {
+            return;
+        };
+
+        let Ok(pose) = monado
+            .ipc
+            .get_reference_space_offset(ReferenceSpaceType::Stage)
+            .inspect_err(|e| log::warn!("Could not snap turn due to libmonado error: {e:?}"))
+        else {
+            return;
+        };
+
+        let before =
+            Affine3A::from_rotation_translation(pose.orientation.into(), pose.position.into());
+
+        let mut space_transform = Affine3A::from_rotation_y(degrees.to_radians());
+        space_transform.translation = (space_transform
+            .transform_vector3a(app.input_state.hmd.translation)
+            - app.input_state.hmd.translation)
+            * -1.0;
+
+        let mut after = before * space_transform;
+        after.matrix3 = Mat3A::from_quat(Quat::from_affine3(&after).normalize());
+
+        log::info!("Snap turn {degrees} deg");
+        apply_offset(after, &mut monado.ipc);
+
+        if !app.session.config.space_drag_affects_world {
+            playspace_common::shift_world(overlays, &mut app.anchor, &before, &after);
         }
     }
 

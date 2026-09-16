@@ -162,6 +162,8 @@ pub(super) struct OpenXrHandSource {
     space_drag: CustomClickAction,
     space_rotate: CustomClickAction,
     space_reset: CustomClickAction,
+    snap_turn_left: CustomClickAction,
+    snap_turn_right: CustomClickAction,
     modifier_right: CustomClickAction,
     modifier_middle: CustomClickAction,
     move_mouse: CustomClickAction,
@@ -539,6 +541,16 @@ impl OpenXrPointer {
             .space_reset
             .state(pointer.before.space_reset, xr)?;
 
+        pointer.now.snap_turn_left = self
+            .source
+            .snap_turn_left
+            .state(pointer.before.snap_turn_left, xr)?;
+
+        pointer.now.snap_turn_right = self
+            .source
+            .snap_turn_right
+            .state(pointer.before.snap_turn_right, xr)?;
+
         Ok(())
     }
 }
@@ -574,6 +586,8 @@ impl OpenXrHandSource {
             space_drag: CustomClickAction::new(action_set, "space_drag", side)?,
             space_rotate: CustomClickAction::new(action_set, "space_rotate", side)?,
             space_reset: CustomClickAction::new(action_set, "space_reset", side)?,
+            snap_turn_left: CustomClickAction::new(action_set, "snap_turn_left", side)?,
+            snap_turn_right: CustomClickAction::new(action_set, "snap_turn_right", side)?,
             modifier_right: CustomClickAction::new(action_set, "click_modifier_right", side)?,
             modifier_middle: CustomClickAction::new(action_set, "click_modifier_middle", side)?,
             move_mouse: CustomClickAction::new(action_set, "move_mouse", side)?,
@@ -752,6 +766,22 @@ fn suggest_bindings(instance: &xr::Instance, hands: &mut [&mut OpenXrHandSource;
             add_custom!(profile.space_reset, space_reset, hands, bindings, instance);
 
             add_custom!(
+                profile.snap_turn_left,
+                snap_turn_left,
+                hands,
+                bindings,
+                instance
+            );
+
+            add_custom!(
+                profile.snap_turn_right,
+                snap_turn_right,
+                hands,
+                bindings,
+                instance
+            );
+
+            add_custom!(
                 profile.click_modifier_right,
                 modifier_right,
                 hands,
@@ -790,6 +820,8 @@ fn suggest_bindings(instance: &xr::Instance, hands: &mut [&mut OpenXrHandSource;
         set_threshold_for!(hands, profile.space_drag, space_drag);
         set_threshold_for!(hands, profile.space_rotate, space_rotate);
         set_threshold_for!(hands, profile.space_reset, space_reset);
+        set_threshold_for!(hands, profile.snap_turn_left, snap_turn_left);
+        set_threshold_for!(hands, profile.snap_turn_right, snap_turn_right);
         set_threshold_for!(hands, profile.click_modifier_right, modifier_right);
         set_threshold_for!(hands, profile.click_modifier_middle, modifier_middle);
         set_threshold_for!(hands, profile.move_mouse, move_mouse);

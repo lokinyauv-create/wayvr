@@ -279,6 +279,10 @@ const fn def_point15() -> f32 {
 	0.15
 }
 
+const fn def_45() -> f32 {
+	45.0
+}
+
 const fn def_osc_port() -> u16 {
 	9000
 }
@@ -449,6 +453,9 @@ pub struct GeneralConfig {
 
 	#[serde(default)]
 	pub space_rotate_unlocked: bool,
+
+	#[serde(default = "def_45")]
+	pub space_snap_turn_angle: f32,
 
 	#[serde(default)]
 	pub space_gravity_enabled: bool,
