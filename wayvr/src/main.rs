@@ -32,6 +32,7 @@ mod test;
 mod windowing;
 
 use std::{
+    os::unix::process::CommandExt,
     path::PathBuf,
     process::Command,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -188,7 +189,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
 
-        let _ = Command::new(exe).args(args).spawn();
+        let err = Command::new(exe).args(args).exec();
+        log::error!("Failed to restart: {err}");
+        return Err(err.into());
     }
 
     Ok(())
@@ -399,7 +402,9 @@ fn ensure_single_instance(replace: bool) -> bool {
                 false,
             );
             if let Some(proc) = system.process(sysinfo::Pid::from_u32(pid)) {
-                if replace {
+                if pid == std::process::id() {
+                    // We already hold this lock (in-place restart via exec() keeps the same PID).
+                } else if replace {
                     proc.kill_with(sysinfo::Signal::Term);
                     proc.wait();
                 } else {
