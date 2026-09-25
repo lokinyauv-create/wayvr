@@ -1,0 +1,42 @@
+[package]
+name = "ovr_overlay"
+version = "0.0.0"
+
+description = "Rust bindings for OpenVR overlays"
+authors = ["Ryan Butler <thebutlah@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/TheButlah/ovr_overlay"
+
+edition = "2021"
+
+[features]
+default = [
+  "ovr_applications",
+  "ovr_chaperone_setup",
+  "ovr_compositor",
+  "ovr_input",
+  "ovr_settings",
+  "ovr_system",
+]
+ovr_applications = []
+ovr_chaperone_setup = []
+ovr_compositor = []
+ovr_input = []
+ovr_system = []
+ovr_settings = []
+
+[dependencies]
+ovr_overlay_sys = { version = "=0.0.0", path = "sys" }
+lazy_static = "1"
+thiserror = "1"
+derive_more = "0.99"
+log = "0.4"
+nalgebra = { version = "0.33", optional = true }
+slice-of-array = "0.3"
+enumset = "1.0.12"
+byteorder = "1.4.3"
+
+
+[workspace]
+members = ["sys"]
+resolver = "2"
