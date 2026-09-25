@@ -21,6 +21,7 @@ use crate::{
         BackendError, RunParams,
         input::interact,
         openvr::{
+            frame_stats::FrameStatsSampler,
             helpers::adjust_gain,
             input::{OpenVrInputSource, set_action_manifest},
             lines::LinePool,
@@ -39,6 +40,7 @@ use crate::{
     },
 };
 
+pub mod frame_stats;
 pub mod helpers;
 pub mod input;
 pub mod lines;
@@ -143,6 +145,7 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
     let frame_timeout = 2 * (1000.0 / refresh_rate).floor() as u32;
 
     let mut next_device_update = Instant::now();
+    let mut frame_stats = FrameStatsSampler::new();
     let mut due_tasks = VecDeque::with_capacity(4);
 
     let mut lines = LinePool::new(app.gfx.clone())?;
@@ -215,6 +218,10 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
                 overlays.devices_changed(&mut app)?;
             }
             next_device_update = Instant::now() + Duration::from_secs(30);
+        }
+
+        if let Some(stats) = frame_stats.update(&mut compositor_mgr, &mut system_mgr) {
+            app.frame_stats = stats;
         }
 
         app.tick();

@@ -183,6 +183,28 @@ pub(super) fn setup_custom_label<S: 'static>(
             ipd_on_tick(common, data, app);
             Ok(EventResult::Pass)
         }),
+        "fps" => {
+            let display = match attribs.get_value("_display").unwrap_or("fps") {
+                "fps" => FpsDisplay::Fps,
+                "reprojection" => FpsDisplay::Reprojection,
+                unk => {
+                    log_invalid_attrib(parser_state, TAG, "_display", unk);
+                    return;
+                }
+            };
+
+            let globals = &layout.state.globals;
+            let state = FpsLabelState {
+                display,
+                good_color: parse_color(attribs, "_good_color", globals, FPS_GOOD),
+                warn_color: parse_color(attribs, "_warn_color", globals, FPS_WARN),
+                bad_color: parse_color(attribs, "_bad_color", globals, FPS_BAD),
+            };
+            Box::new(move |common, data, app, _| {
+                fps_on_tick(&state, common, data, app);
+                Ok(EventResult::Pass)
+            })
+        }
         unk => {
             log_invalid_attrib(parser_state, TAG, "_source", unk);
             return;
@@ -302,5 +324,71 @@ fn ipd_on_tick(
 ) {
     let text = app.input_state.ipd.to_string();
     let label = data.obj.get_as_mut::<WidgetLabel>().unwrap();
+    label.set_text(common, Translation::from_raw_text(&text));
+}
+
+const FPS_GOOD: drawing::Color = drawing::Color::new(0.55, 0.84, 0.55, 1.);
+const FPS_WARN: drawing::Color = drawing::Color::new(0.90, 0.78, 0.40, 1.);
+const FPS_BAD: drawing::Color = drawing::Color::new(0.88, 0.42, 0.42, 1.);
+
+enum FpsDisplay {
+    Fps,
+    Reprojection,
+}
+
+struct FpsLabelState {
+    display: FpsDisplay,
+    good_color: WguiColor,
+    warn_color: WguiColor,
+    bad_color: WguiColor,
+}
+
+fn fps_on_tick(
+    state: &FpsLabelState,
+    common: &mut event::CallbackDataCommon,
+    data: &mut event::CallbackData,
+    app: &AppState,
+) {
+    let label = data.obj.get_as_mut::<WidgetLabel>().unwrap();
+
+    let Some(stats) = app.frame_stats else {
+        let text = match state.display {
+            FpsDisplay::Fps => "— FPS",
+            FpsDisplay::Reprojection => "",
+        };
+        label.set_color(common, state.good_color, true);
+        label.set_text(common, Translation::from_raw_text(text));
+        return;
+    };
+
+    let (text, color) = match state.display {
+        FpsDisplay::Fps => {
+            let ratio = if stats.display_hz > 0.0 {
+                stats.fps / stats.display_hz
+            } else {
+                1.0
+            };
+            let color = if ratio >= 0.9 {
+                state.good_color
+            } else if ratio >= 0.7 {
+                state.warn_color
+            } else {
+                state.bad_color
+            };
+            (format!("{:.0} FPS", stats.fps), color)
+        }
+        FpsDisplay::Reprojection => {
+            let pct = stats.reprojected_pct;
+            let color = if pct <= 10.0 {
+                state.good_color
+            } else if pct <= 30.0 {
+                state.warn_color
+            } else {
+                state.bad_color
+            };
+            (format!("репр. {pct:.0}%"), color)
+        }
+    };
+    label.set_color(common, color, true);
     label.set_text(common, Translation::from_raw_text(&text));
 }

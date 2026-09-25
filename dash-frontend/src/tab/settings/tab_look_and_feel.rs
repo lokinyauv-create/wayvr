@@ -74,8 +74,6 @@ impl State {
 		options_slider_f32(par.mp, c, SettingType::UiAnimationSpeed, 0.5, 5.0, 0.1)?; // min, max, step
 		options_slider_f32(par.mp, c, SettingType::UiGradientIntensity, 0.0, 1.0, 0.05)?; // min, max, step
 		options_slider_f32(par.mp, c, SettingType::UiRoundMultiplier, 0.1, 5.0, 0.1)?;
-		options_checkbox(par.mp, c, SettingType::EnableWatch)?;
-		options_checkbox(par.mp, c, SettingType::SetsOnWatch)?;
 		options_checkbox(par.mp, c, SettingType::Clock12h)?;
 		Ok(State {
 			popup_color_palettes: popup,

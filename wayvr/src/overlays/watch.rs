@@ -2,7 +2,7 @@ use crate::{
     gui::{
         panel::{
             GuiPanel, NewGuiPanelParams, apply_custom_command, device_list::DeviceList,
-            overlay_list::OverlayList, set_list::SetList,
+            overlay_list::OverlayList,
         },
         timer::GuiTimer,
     },
@@ -29,7 +29,6 @@ pub const WATCH_ROT: Quat = Quat::from_xyzw(-0.707_106_6, 0.000_796_361_8, 0.707
 struct WatchState {
     device_list: DeviceList,
     overlay_list: OverlayList,
-    set_list: SetList,
     clock_12h: bool,
 }
 
@@ -43,8 +42,6 @@ pub fn create_watch(app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
     let mut panel =
         GuiPanel::new_from_template(app, watch_xml, state, NewGuiPanelParams::default())?;
 
-    sets_or_overlays(&mut panel, app);
-
     let doc_params = ParseDocumentParams {
         globals: panel.layout.state.globals.clone(),
         path: AssetPathRef::FileOrBuiltIn(watch_xml),
@@ -55,13 +52,6 @@ pub fn create_watch(app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
         let name = WATCH_NAME;
         move |panel, app, event_data| {
             let mut elems_changed = panel.state.overlay_list.on_notify(
-                &mut panel.layout,
-                &mut panel.parser_state,
-                &event_data,
-                &doc_params,
-            )?;
-
-            elems_changed |= panel.state.set_list.on_notify(
                 &mut panel.layout,
                 &mut panel.parser_state,
                 &event_data,
@@ -87,7 +77,6 @@ pub fn create_watch(app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
                 }
                 OverlayEventData::SettingsChanged => {
                     panel.layout.mark_redraw();
-                    sets_or_overlays(panel, app);
 
                     if app.session.config.clock_12h != panel.state.clock_12h {
                         panel.state.clock_12h = app.session.config.clock_12h;
@@ -154,30 +143,4 @@ pub fn create_watch(app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
         global: true,
         ..OverlayWindowConfig::from_backend(Box::new(panel))
     })
-}
-
-fn sets_or_overlays(panel: &mut GuiPanel<WatchState>, app: &mut AppState) {
-    let visible = if app.session.config.sets_on_watch {
-        [false, true]
-    } else {
-        [true, false]
-    };
-
-    let widget = [
-        panel
-            .parser_state
-            .get_widget_id("panels_root")
-            .unwrap_or_default(),
-        panel
-            .parser_state
-            .get_widget_id("sets_root")
-            .unwrap_or_default(),
-    ];
-
-    for i in 0..2 {
-        panel
-            .layout
-            .alterables
-            .set_widget_visible(widget[i], visible[i]);
-    }
 }

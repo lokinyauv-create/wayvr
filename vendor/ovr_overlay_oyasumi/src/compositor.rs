@@ -56,6 +56,19 @@ impl<'c> CompositorManager<'c> {
         unsafe { self.inner.as_mut().IsCurrentSceneFocusAppLoading() }
     }
 
+    /// Frame counters of the current (or last) scene application, accumulated since it started.
+    pub fn get_cumulative_stats(&mut self) -> sys::Compositor_CumulativeStats {
+        // SAFETY: plain C struct of u32 counters, all-zero is a valid value
+        let mut stats: sys::Compositor_CumulativeStats = unsafe { std::mem::zeroed() };
+        unsafe {
+            self.inner.as_mut().GetCumulativeStats(
+                &mut stats,
+                std::mem::size_of::<sys::Compositor_CumulativeStats>() as u32,
+            )
+        };
+        stats
+    }
+
     pub fn get_vulkan_instance_extensions_required(&mut self) -> Vec<String> {
         let mut buf = [0 as c_char; 1024];
         let len = unsafe {

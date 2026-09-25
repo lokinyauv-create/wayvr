@@ -9,9 +9,9 @@ use wgui::{
 
 #[derive(Default)]
 /// Helper for managing a list of overlays
-/// Populates `id="panels_root"` with `<Screen>`, `<Mirror>`, `<Panel>` templates
-/// Populates `id="apps_root"` with `<App>` templates (optional)
-/// Uses the following parameters: `name` (All), `display` (Screen, Mirror), `icon` (App, Panel)
+/// Populates `id="panels_root"` with `<Screen>` templates; mirrors, panels and apps are left out
+/// Clears `id="apps_root"` (optional)
+/// Uses the following parameters: `name`, `display`
 pub struct OverlayList {
     overlay_buttons: SecondaryMap<OverlayID, Rc<ComponentButton>>,
 }
@@ -51,43 +51,6 @@ impl OverlayList {
                                 .into(),
                             );
                             ("Screen", panels_root)
-                        }
-                        OverlayCategory::Mirror => {
-                            params.insert_rc(
-                                "display",
-                                (*meta.name).chars().last().unwrap().to_string().into(),
-                            );
-                            ("Mirror", panels_root)
-                        }
-                        OverlayCategory::Passthru => {
-                            let display = meta
-                                .name
-                                .rsplit('-')
-                                .next()
-                                .unwrap_or(&meta.name)
-                                .to_string();
-                            params.insert_rc("display", display.into());
-                            ("Passthru", panels_root)
-                        }
-                        OverlayCategory::Panel | OverlayCategory::BuiltInPanel => {
-                            let icon: Rc<str> = if let Some(icon) = meta.icon.as_ref() {
-                                icon.to_string().into()
-                            } else {
-                                "@/edit/panel.svg".into()
-                            };
-
-                            params.insert_rc("icon", icon);
-                            ("Panel", panels_root)
-                        }
-                        OverlayCategory::WayVR => {
-                            params.insert(
-                                "icon",
-                                meta.icon
-                                    .as_ref()
-                                    .expect("WayVR overlay without Icon attribute!")
-                                    .as_ref(),
-                            );
-                            ("App", apps_root)
                         }
                         OverlayCategory::Dashboard | OverlayCategory::Keyboard => {
                             let key = if matches!(meta.category, OverlayCategory::Dashboard) {

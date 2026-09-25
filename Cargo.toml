@@ -11,6 +11,7 @@ members = [
   "wlx-capture",
   "wlx-common",
 ]
+exclude = ["vendor"]
 
 [workspace.dependencies]
 anyhow = "1.0.100"
@@ -51,6 +52,10 @@ wayland-protocols = { version = "0.32" }
 wayland-protocols-misc = { version = "0.3.12" }
 winit = "0.30.12"
 xdg = "3.0.0"
+
+# Local copy with IVRCompositor::GetCumulativeStats bindings (frame stats on the watch)
+[patch."https://github.com/galister/ovr_overlay_oyasumi"]
+ovr_overlay = { path = "vendor/ovr_overlay_oyasumi" }
 
 [patch.crates-io]
 vulkano = {

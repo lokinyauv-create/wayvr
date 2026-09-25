@@ -89,6 +89,16 @@ pub struct AppState {
     pub screencast_manager: Option<ScreenCastManager>,
 
     pub delta_time: f32,
+
+    /// Frame rate of the scene app; only the OpenVR backend fills this
+    pub frame_stats: Option<FrameStats>,
+}
+
+#[derive(Clone, Copy)]
+pub struct FrameStats {
+    pub fps: f32,
+    pub display_hz: f32,
+    pub reprojected_pct: f32,
 }
 
 #[allow(unused_mut)]
@@ -229,6 +239,7 @@ impl AppState {
             screencast_manager,
 
             delta_time: 1.0 / 120.0,
+            frame_stats: None,
             session,
         };
 

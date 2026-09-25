@@ -24,31 +24,6 @@
   <elements>
     <!-- left/right separator (menu and rest) -->
     <div flex_direction="row" gap="8" width="100%" height="100%" padding="4" interactable="0">
-      <!-- LEFT MENU -->
-      <div id="menu"
-        width="~side_size"
-        min_width="~side_size"
-        max_width="~side_size"
-        height="100%"
-        align_items="center"
-        justify_content="center">
-        <rectangle
-          width="100%"
-          round="100%"
-          color="background_contrast"
-          flex_direction="column"
-          justify_content="center"
-          align_items="center"
-          gap="4"
-        >
-          <SideButton id="btn_side_home" src_builtin="@/dashboard/wayvr_dashboard_mono.svg" tooltip="HOME_SCREEN" tooltip_side="right" />
-          <SideButton id="btn_side_apps" src_builtin="@/dashboard/apps.svg" tooltip="APPLICATIONS" tooltip_side="right" />
-          <SideButton id="btn_side_games" src_builtin="@/dashboard/games.svg" tooltip="GAMES" tooltip_side="right" />
-          <SideButton id="btn_side_monado" src_builtin="@/dashboard/monado.svg" tooltip="MONADO_RUNTIME" tooltip_side="right" />
-          <rectangle height="2" color="outline" width="~side_sprite_size" />
-          <SideButton id="btn_side_settings" src_builtin="@/dashboard/settings.svg" tooltip="SETTINGS" tooltip_side="right" />
-        </rectangle>
-      </div>
       <!-- REST -->
       <!-- top/content/bottom panel separator -->
       <div
@@ -138,9 +113,6 @@
           <div margin_left="8">
             <Button id="btn_audio" color="background(transparent)" border_color="background(transparent)" tooltip="AUDIO.VOLUME" tooltip_side="top">
               <sprite src_builtin="@/dashboard/volume.svg" width="24" height="24" margin="8" />
-            </Button>
-            <Button id="btn_recenter" color="background(transparent)" border_color="background(transparent)" tooltip="ACTIONS.RECENTER_PLAYSPACE" tooltip_side="top">
-              <sprite src_builtin="@/dashboard/recenter.svg" width="24" height="24" margin="8" />
             </Button>
           </div>
 

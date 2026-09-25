@@ -169,12 +169,8 @@ impl<T: 'static> Frontend<T> {
 
 		let tasks = FrontendTasks::new();
 
-		let init_tab = if params.show_welcome {
-			TabType::Welcome
-		} else {
-			TabType::Home
-		};
-		tasks.push(FrontendTask::SetTab(init_tab));
+		// Settings (look and feel) is the only tab left in this build
+		tasks.push(FrontendTask::SetTab(TabType::Settings));
 
 		let id_label_time = state.get_widget_id("label_time")?;
 		let id_rect_content = state.get_widget_id("rect_content")?;
@@ -466,35 +462,6 @@ impl<T: 'static> Frontend<T> {
 		);
 
 		// ################################
-		// SIDE BUTTONS
-		// ################################
-
-		// "Home" side button
-		let btn = self.state.fetch_component_as::<ComponentButton>("btn_side_home")?;
-		self.tasks.handle_button(&btn, FrontendTask::SetTab(TabType::Home));
-		self.side_buttons.push((TabType::Home, btn));
-
-		// "Apps" side button
-		let btn = self.state.fetch_component_as::<ComponentButton>("btn_side_apps")?;
-		self.tasks.handle_button(&btn, FrontendTask::SetTab(TabType::Apps));
-		self.side_buttons.push((TabType::Apps, btn));
-
-		// "Games" side button
-		let btn = self.state.fetch_component_as::<ComponentButton>("btn_side_games")?;
-		self.tasks.handle_button(&btn, FrontendTask::SetTab(TabType::Games));
-		self.side_buttons.push((TabType::Games, btn));
-
-		// "Monado side button"
-		let btn = self.state.fetch_component_as::<ComponentButton>("btn_side_monado")?;
-		self.tasks.handle_button(&btn, FrontendTask::SetTab(TabType::Monado));
-		self.side_buttons.push((TabType::Monado, btn));
-
-		// "Settings" side button
-		let btn = self.state.fetch_component_as::<ComponentButton>("btn_side_settings")?;
-		self.tasks.handle_button(&btn, FrontendTask::SetTab(TabType::Settings));
-		self.side_buttons.push((TabType::Settings, btn));
-
-		// ################################
 		// BOTTOM BAR BUTTONS
 		// ################################
 
@@ -502,12 +469,6 @@ impl<T: 'static> Frontend<T> {
 		self.tasks.handle_button(
 			&self.state.fetch_component_as::<ComponentButton>("btn_audio")?,
 			FrontendTask::ShowAudioSettings,
-		);
-
-		// "Recenter playspace" bottom bar button
-		self.tasks.handle_button(
-			&self.state.fetch_component_as::<ComponentButton>("btn_recenter")?,
-			FrontendTask::RecenterPlayspace,
 		);
 
 		Ok(())

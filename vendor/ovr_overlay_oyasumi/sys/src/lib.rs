@@ -79,6 +79,7 @@ include_cpp! {
     generate!("vr::IVRCompositor")
     generate!("vr::VRCompositor")
     generate_pod!("vr::EVRCompositorError")
+    generate_pod!("vr::Compositor_CumulativeStats")
 }
 
 //pub use ffi::vr::*;
