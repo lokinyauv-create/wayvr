@@ -5,7 +5,6 @@ use wgui::{
 	assets::{AssetPathRef},
 	color::WguiColorName,
 	components::tabs::ComponentTabs,
-	event::StyleSetRequest,
 	globals::WguiGlobals,
 	i18n::Translation,
 	layout::{Layout, WidgetID},
@@ -754,7 +753,7 @@ impl<T> TabSettings<T> {
 		Ok(())
 	}
 
-	pub fn new(frontend: &mut Frontend<T>, parent_id: WidgetID, data: &mut T) -> anyhow::Result<Self> {
+	pub fn new(frontend: &mut Frontend<T>, parent_id: WidgetID, _data: &mut T) -> anyhow::Result<Self> {
 		let doc_params = ParseDocumentParams {
 			globals: frontend.layout.state.globals.clone(),
 			path: AssetPathRef::BuiltIn("gui/tab/settings.xml"),
@@ -764,15 +763,6 @@ impl<T> TabSettings<T> {
 		let parser_state = wgui::parser::parse_from_assets(&doc_params, &mut frontend.layout, parent_id)?;
 		let tasks = Tasks::default();
 		let tabs = parser_state.fetch_component_as::<ComponentTabs>("tabs")?;
-
-		if !frontend.interface.get_feats(data).xr_backend.is_open_xr() {
-			let skybox_btn = tabs.get_tab_button("skybox").unwrap();
-			frontend
-				.layout
-				.common()
-				.alterables
-				.set_style(skybox_btn.get_rect(), StyleSetRequest::Display(taffy::Display::None));
-		}
 
 		tabs.on_select({
 			let tasks = tasks.clone();
