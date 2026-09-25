@@ -730,10 +730,6 @@ impl WvrServerState {
         self.process_overlays.remove(&process);
     }
 
-    pub fn get_overlay_id(&self, window: window::WindowHandle) -> Option<OverlayID> {
-        self.window_to_overlay.get(&window).copied()
-    }
-
     #[allow(clippy::match_same_arms)]
     pub fn hit_target_to_focus(
         &self,
@@ -1217,10 +1213,6 @@ impl WvrServerState {
             }
         }
         self.cur_modifiers = modifiers;
-    }
-
-    pub fn set_clipboard(&mut self, content: &str) {
-        self.manager.state.set_clipboard_text(content);
     }
 
     pub fn add_external_process(&mut self, pid: u32) -> process::ProcessHandle {

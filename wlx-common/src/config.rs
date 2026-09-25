@@ -1,11 +1,10 @@
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use chrono::Offset;
 use idmap::IdMap;
 use serde::{Deserialize, Serialize};
-use strum::{AsRefStr, EnumProperty, EnumString, VariantArray, VariantNames};
+use strum::{AsRefStr, EnumProperty, EnumString, VariantArray};
 use wayvr_ipc::packet_client::WvrProcessLaunchParams;
-use wgui::drawing::{self, HsvColor};
 
 use crate::{
 	astr_containers::{AStrMap, AStrSet},
@@ -144,57 +143,6 @@ impl From<HandsfreeAltTab> for HandsfreePointer {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ChromaKeyParams {
-	pub hsv_min: [f32; 3],
-	pub hsv_max: [f32; 3],
-	pub curve: f32,
-	pub despill: f32,
-}
-
-fn hsv_green() -> [f32; 3] {
-	[2.0 / 6.0, 1.0, 1.0]
-}
-
-impl Default for ChromaKeyParams {
-	fn default() -> Self {
-		Self {
-			hsv_min: hsv_green(),
-			hsv_max: hsv_green(),
-			curve: 0.0, // Monado will ignore chroma keying completely if this value is zero
-			despill: 0.0,
-		}
-	}
-}
-
-impl ChromaKeyParams {
-	pub fn update_hsv_range_from_rgb(&mut self, rgb_color: drawing::Color, range_h: f32, range_s: f32, range_v: f32) {
-		let hsv = HsvColor::from(rgb_color);
-		self.hsv_min[0] = hsv.h - range_h / 2.0;
-		self.hsv_min[1] = hsv.s - range_s / 2.0;
-		self.hsv_min[2] = hsv.v - range_v / 2.0;
-		self.hsv_max[0] = hsv.h + range_h / 2.0;
-		self.hsv_max[1] = hsv.s + range_s / 2.0;
-		self.hsv_max[2] = hsv.v + range_v / 2.0;
-	}
-
-	// Inverse of `update_hsv_range_from_rgb` function
-	pub fn get_rgb_and_hsv_ranges(&self) -> (drawing::Color, f32, f32, f32) {
-		(
-			HsvColor::new(
-				(self.hsv_min[0] + self.hsv_max[0]) / 2.0,
-				(self.hsv_min[1] + self.hsv_max[1]) / 2.0,
-				(self.hsv_min[2] + self.hsv_max[2]) / 2.0,
-				1.0,
-			)
-			.to_rgb(),
-			self.hsv_max[0] - self.hsv_min[0],
-			self.hsv_max[1] - self.hsv_min[1],
-			self.hsv_max[2] - self.hsv_min[2],
-		)
-	}
-}
-
-#[derive(Clone, Serialize, Deserialize)]
 pub struct SerializedWindowSet {
 	pub name: Arc<str>,
 
@@ -203,44 +151,6 @@ pub struct SerializedWindowSet {
 
 	#[serde(default)]
 	pub hidden_overlays: SerializedWindowStates,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq, EnumString, VariantNames, AsRefStr)]
-pub enum AppPosMode {
-	Floating,
-	Anchored,
-	Static,
-}
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq, EnumString, VariantNames, AsRefStr)]
-pub enum AppOrientationMode {
-	Wide,
-	SemiWide,
-	Square,
-	SemiTall,
-	Tall,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq, EnumString, VariantNames, AsRefStr)]
-pub enum AppCompositorMode {
-	Cage,
-	Native,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq, EnumString, VariantNames, AsRefStr)]
-pub enum AppResMode {
-	Res1440,
-	Res1080,
-	Res720,
-	Res480,
-}
-
-#[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct PinnedApp {
-	pub app_id: Rc<str>, // desktop entry app id, for example "libreoffice-draw"
-	pub compositor_mode: AppCompositorMode,
-	pub pos_mode: AppPosMode,
-	pub orientation_mode: AppOrientationMode,
-	pub res_mode: AppResMode,
 }
 
 pub const fn def_pw_tokens() -> PwTokenMap {
@@ -277,14 +187,6 @@ const fn def_point3() -> f32 {
 
 const fn def_point15() -> f32 {
 	0.15
-}
-
-const fn def_45() -> f32 {
-	45.0
-}
-
-const fn def_osc_port() -> u16 {
-	9000
 }
 
 fn def_timezones() -> Vec<String> {
@@ -379,9 +281,6 @@ pub struct GeneralConfig {
 	#[serde(default = "def_point7")]
 	pub watch_view_angle_max: f32,
 
-	#[serde(default = "def_osc_port")]
-	pub osc_out_port: u16,
-
 	#[serde(default)]
 	pub upright_screen_fix: bool,
 
@@ -390,9 +289,6 @@ pub struct GeneralConfig {
 
 	#[serde(default = "def_true")]
 	pub enable_watch: bool,
-
-	#[serde(default)]
-	pub sets_on_watch: bool,
 
 	#[serde(default)]
 	pub hide_grab_help: bool,
@@ -424,18 +320,6 @@ pub struct GeneralConfig {
 	#[serde(default = "def_true")]
 	pub block_poses_on_kbd_interaction: bool,
 
-	#[serde(default = "def_one")]
-	pub space_drag_multiplier: f32,
-
-	#[serde(default)]
-	pub skybox_texture: Arc<str>,
-
-	#[serde(default = "def_true")]
-	pub use_skybox: bool,
-
-	#[serde(default = "def_true")]
-	pub use_passthrough: bool,
-
 	#[serde(default = "def_max_height")]
 	pub screen_max_height: u16,
 
@@ -444,36 +328,6 @@ pub struct GeneralConfig {
 
 	#[serde(default = "def_point3")]
 	pub pointer_lerp_factor: f32,
-
-	#[serde(default = "def_true")]
-	pub space_drag_unlocked: bool,
-
-	#[serde(default)]
-	pub space_drag_affects_world: bool,
-
-	#[serde(default)]
-	pub space_rotate_unlocked: bool,
-
-	#[serde(default = "def_45")]
-	pub space_snap_turn_angle: f32,
-
-	#[serde(default)]
-	pub space_gravity_enabled: bool,
-
-	#[serde(default = "def_one")]
-	pub space_gravity_gravity: f32,
-
-	#[serde(default = "def_one")]
-	pub space_gravity_damping: f32,
-
-	#[serde(default = "def_one")]
-	pub space_gravity_fling_strength: f32,
-
-	#[serde(default = "def_one")]
-	pub space_gravity_ground_friction: f32,
-
-	#[serde(default)]
-	pub space_gravity_floor_height: f32,
 
 	#[serde(default)]
 	pub alt_click_down: Vec<String>,
@@ -502,9 +356,6 @@ pub struct GeneralConfig {
 	pub autostart_apps: Vec<WvrProcessLaunchParams>,
 
 	#[serde(default)]
-	pub pinned_apps: Vec<PinnedApp>,
-
-	#[serde(default)]
 	pub last_set: u32,
 
 	#[serde(default)]
@@ -512,12 +363,6 @@ pub struct GeneralConfig {
 
 	#[serde(default)]
 	pub opaque_background: bool,
-
-	#[serde(default)]
-	pub xwayland_by_default: bool,
-
-	#[serde(default)]
-	pub context_menu_hold_and_release: bool,
 
 	#[serde(default)]
 	pub keyboard_middle_click_mode: AltModifier,
@@ -528,17 +373,8 @@ pub struct GeneralConfig {
 	#[serde(default)]
 	pub handsfree_alt_tab: HandsfreeAltTab,
 
-	#[serde(default = "def_one")]
-	pub grid_opacity: f32,
-
-	#[serde(default)]
-	pub chroma_key_params: ChromaKeyParams,
-
 	#[serde(default)]
 	pub tutorial_graduated: bool,
-
-	#[serde(default)]
-	pub whisper_model: Arc<str>,
 
 	#[serde(default = "def_default")]
 	pub color_palette: Arc<str>,

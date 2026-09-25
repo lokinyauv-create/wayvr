@@ -27,7 +27,7 @@ use smithay::wayland::output::OutputHandler;
 use smithay::wayland::relative_pointer::RelativePointerManagerState;
 use smithay::wayland::selection::data_device::{
     ClientDndGrabHandler, DataDeviceHandler, DataDeviceState, ServerDndGrabHandler,
-    set_data_device_focus, set_data_device_selection,
+    set_data_device_focus,
 };
 use smithay::wayland::selection::{self, SelectionHandler};
 use smithay::wayland::selection::{
@@ -71,6 +71,7 @@ pub struct Application {
     pub dmabuf_state: (DmabufState, DmabufGlobal, Option<DmabufFeedback>),
     pub compositor: compositor::CompositorState,
     pub xdg_shell: XdgShellState,
+    #[allow(dead_code)]
     pub seat: Seat<Application>,
     pub seat_state: SeatState<Application>,
     pub shm: ShmState,
@@ -97,15 +98,6 @@ impl Application {
     pub fn cleanup(&mut self) {
         self.image_importer.cleanup();
         self.output.cleanup();
-    }
-
-    pub fn set_clipboard_text(&mut self, content: &str) {
-        let mime_types = vec![
-            "text/plain;charset=utf-8".to_string(),
-            "text/plain".to_string(),
-        ];
-        let user_data = Arc::from(content.as_bytes());
-        set_data_device_selection(&self.display_handle, &self.seat, mime_types, user_data);
     }
 
     fn popups_commit(&mut self, surface: &WlSurface) {

@@ -58,19 +58,6 @@ pub enum OpenVrTask {
     ColorGain(ColorChannel, f32),
 }
 
-#[cfg(feature = "openxr")]
-pub enum OpenXrTask {
-    EnvironmentChanged,
-}
-
-pub enum PlayspaceTask {
-    Recenter,
-    Reset,
-    FixFloor,
-    SaveCenter,
-    ResetCenter,
-}
-
 #[derive(Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
 #[allow(dead_code)]
@@ -144,11 +131,8 @@ pub enum TaskType {
     Global(Box<GlobalTask>),
     Input(InputTask),
     Overlay(OverlayTask),
-    Playspace(PlayspaceTask),
     #[cfg(feature = "openvr")]
     OpenVR(OpenVrTask),
-    #[cfg(feature = "openxr")]
-    OpenXR(OpenXrTask),
 }
 
 #[derive(Deserialize, Clone, Copy)]

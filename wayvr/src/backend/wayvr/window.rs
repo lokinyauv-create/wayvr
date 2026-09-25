@@ -172,10 +172,4 @@ impl WindowHandle {
     pub fn from_packet(handle: packet_server::WvrWindowHandle) -> Self {
         Self::from(slotmap::KeyData::from_ffi(handle.user))
     }
-
-    pub fn as_packet(self) -> packet_server::WvrWindowHandle {
-        packet_server::WvrWindowHandle {
-            user: self.0.as_ffi(),
-        }
-    }
 }

@@ -39,9 +39,6 @@ const PATH_GRAB: &str = "/actions/default/in/Grab";
 const PATH_MOVE_MOUSE: &str = "/actions/default/in/MoveMouse";
 const PATH_SCROLL: &str = "/actions/default/in/Scroll";
 const PATH_SHOW_HIDE: &str = "/actions/default/in/ShowHide";
-const PATH_SPACE_DRAG: &str = "/actions/default/in/SpaceDrag";
-const PATH_SPACE_ROTATE: &str = "/actions/default/in/SpaceRotate";
-const PATH_SPACE_RESET: &str = "/actions/default/in/SpaceReset";
 const PATH_TOGGLE_DASHBOARD: &str = "/actions/default/in/ToggleDashboard";
 
 const INPUT_ANY: InputValueHandle = InputValueHandle(ovr_overlay::sys::k_ulInvalidInputValueHandle);
@@ -55,9 +52,6 @@ pub(super) struct OpenVrInputSource {
     alt_click_hnd: ActionHandle,
     show_hide_hnd: ActionHandle,
     toggle_dashboard_hnd: ActionHandle,
-    space_drag_hnd: ActionHandle,
-    space_rotate_hnd: ActionHandle,
-    space_reset_hnd: ActionHandle,
     click_modifier_right_hnd: ActionHandle,
     click_modifier_middle_hnd: ActionHandle,
     move_mouse_hnd: ActionHandle,
@@ -81,9 +75,6 @@ impl OpenVrInputSource {
         let alt_click_hnd = input.get_action_handle(PATH_ALT_CLICK)?;
         let show_hide_hnd = input.get_action_handle(PATH_SHOW_HIDE)?;
         let toggle_dashboard_hnd = input.get_action_handle(PATH_TOGGLE_DASHBOARD)?;
-        let space_drag_hnd = input.get_action_handle(PATH_SPACE_DRAG)?;
-        let space_rotate_hnd = input.get_action_handle(PATH_SPACE_ROTATE)?;
-        let space_reset_hnd = input.get_action_handle(PATH_SPACE_RESET)?;
         let click_modifier_right_hnd = input.get_action_handle(PATH_CLICK_MODIFIER_RIGHT)?;
         let click_modifier_middle_hnd = input.get_action_handle(PATH_CLICK_MODIFIER_MIDDLE)?;
         let move_mouse_hnd = input.get_action_handle(PATH_MOVE_MOUSE)?;
@@ -120,9 +111,6 @@ impl OpenVrInputSource {
             alt_click_hnd,
             show_hide_hnd,
             toggle_dashboard_hnd,
-            space_drag_hnd,
-            space_rotate_hnd,
-            space_reset_hnd,
             click_modifier_right_hnd,
             click_modifier_middle_hnd,
             move_mouse_hnd,
@@ -234,18 +222,6 @@ impl OpenVrInputSource {
 
             app_hand.now.toggle_dashboard = input
                 .get_digital_action_data(self.toggle_dashboard_hnd, hand.input_hnd)
-                .is_ok_and(|x| x.0.bState);
-
-            app_hand.now.space_drag = input
-                .get_digital_action_data(self.space_drag_hnd, hand.input_hnd)
-                .is_ok_and(|x| x.0.bState);
-
-            app_hand.now.space_rotate = input
-                .get_digital_action_data(self.space_rotate_hnd, hand.input_hnd)
-                .is_ok_and(|x| x.0.bState);
-
-            app_hand.now.space_reset = input
-                .get_digital_action_data(self.space_reset_hnd, hand.input_hnd)
                 .is_ok_and(|x| x.0.bState);
 
             app_hand.now.click_modifier_right = input

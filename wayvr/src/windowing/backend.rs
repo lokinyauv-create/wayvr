@@ -7,7 +7,7 @@ use wgui::gfx::{
     cmd::{GfxCommandBuffer, WGfxClearMode},
 };
 use wlx_common::{
-    overlays::{BackendAttrib, BackendAttribValue, StereoMode},
+    overlays::{BackendAttrib, BackendAttribValue},
     windowing::Positioning,
 };
 
@@ -30,7 +30,6 @@ pub struct FrameMeta {
     #[allow(dead_code)]
     pub format: Format,
     pub clear: WGfxClearMode,
-    pub stereo: StereoMode,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -104,7 +103,6 @@ pub struct OverlayMeta {
     pub name: Arc<str>,
     pub category: OverlayCategory,
     pub visible: bool,
-    pub icon: Option<Arc<str>>,
 }
 
 #[allow(clippy::enum_variant_names)]

@@ -523,13 +523,12 @@ pub(super) struct WlxCaptureOut {
 }
 
 impl WlxCaptureOut {
-    pub(super) fn get_frame_meta(&self, config: &GeneralConfig, stereo: StereoMode) -> FrameMeta {
+    pub(super) fn get_frame_meta(&self, config: &GeneralConfig) -> FrameMeta {
         FrameMeta {
             clear: WGfxClearMode::DontCare,
             extent: extent_from_format(self.format, config),
             transform: Affine3A::IDENTITY,
             format: self.image.format(),
-            stereo,
         }
     }
 }

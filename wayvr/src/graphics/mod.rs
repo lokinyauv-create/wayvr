@@ -1,4 +1,3 @@
-pub mod dds;
 pub mod dmabuf;
 
 use std::{
@@ -25,11 +24,8 @@ use crate::shaders::{
     frag_color, frag_grid, frag_screen, frag_simple, frag_sky, frag_srgb, vert_quad,
 };
 
-#[cfg(feature = "openxr")]
-use {ash::vk, std::os::raw::c_void};
-
 use vulkano::{
-    self, VulkanObject,
+    self,
     buffer::{Buffer, BufferContents, Subbuffer},
     device::{
         DeviceCreateInfo, DeviceExtensions, DeviceFeatures, Queue, QueueCreateInfo, QueueFlags,
@@ -162,228 +158,6 @@ const fn get_dmabuf_extensions() -> DeviceExtensions {
 static VULKAN_LIBRARY: OnceLock<Arc<vulkano::VulkanLibrary>> = OnceLock::new();
 fn get_vulkan_library() -> &'static Arc<vulkano::VulkanLibrary> {
     VULKAN_LIBRARY.get_or_init(|| vulkano::VulkanLibrary::new().unwrap()) // want panic
-}
-
-#[cfg(feature = "openxr")]
-unsafe extern "system" fn get_instance_proc_addr(
-    instance: openxr::sys::platform::VkInstance,
-    name: *const std::ffi::c_char,
-) -> Option<unsafe extern "system" fn()> {
-    use vulkano::Handle;
-    let instance = ash::vk::Instance::from_raw(instance as _);
-    let library = get_vulkan_library();
-    unsafe { library.get_instance_proc_addr(instance, name) }
-}
-
-#[cfg(feature = "openxr")]
-#[allow(clippy::too_many_lines)]
-pub fn init_openxr_graphics(
-    xr_instance: openxr::Instance,
-    system: openxr::SystemId,
-) -> anyhow::Result<(Arc<WGfx>, WGfxExtras)> {
-    use std::ffi::{self, CString};
-
-    use vulkano::{Handle, Version};
-
-    let instance_extensions = InstanceExtensions {
-        khr_get_physical_device_properties2: true,
-        ..InstanceExtensions::empty()
-    };
-
-    let instance_extensions_raw = instance_extensions
-        .into_iter()
-        .filter_map(|(name, enabled)| {
-            if enabled {
-                Some(ffi::CString::new(name).unwrap().into_raw().cast_const())
-            // want panic
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let vk_target_version = vk::make_api_version(0, 1, 3, 0);
-    let target_version = vulkano::Version::V1_3;
-    let library = get_vulkan_library();
-
-    let vk_app_info_raw = vk::ApplicationInfo::default()
-        .application_version(0)
-        .engine_version(0)
-        .api_version(vk_target_version);
-
-    let instance = unsafe {
-        let vk_instance = xr_instance
-            .create_vulkan_instance(
-                system,
-                get_instance_proc_addr,
-                std::ptr::from_ref(
-                    &vk::InstanceCreateInfo::default()
-                        .application_info(&vk_app_info_raw)
-                        .enabled_extension_names(&instance_extensions_raw),
-                )
-                .cast(),
-            )
-            .expect("XR error creating Vulkan instance")
-            .map_err(vk::Result::from_raw)
-            .expect("Vulkan error creating Vulkan instance");
-
-        Instance::from_handle(
-            library.clone(),
-            ash::vk::Instance::from_raw(vk_instance as _),
-            InstanceCreateInfo {
-                application_version: Version::major_minor(0, 0),
-                engine_version: Version::major_minor(0, 0),
-                max_api_version: Some(Version::V1_3),
-                enabled_extensions: instance_extensions,
-                ..Default::default()
-            },
-        )
-    };
-
-    let physical_device = unsafe {
-        PhysicalDevice::from_handle(
-            instance.clone(),
-            vk::PhysicalDevice::from_raw(
-                xr_instance.vulkan_graphics_device(system, instance.handle().as_raw() as _)? as _,
-            ),
-        )
-    }?;
-
-    let vk_device_properties = physical_device.properties();
-    assert!(
-        (vk_device_properties.api_version >= target_version),
-        "Vulkan physical device doesn't support Vulkan {target_version}"
-    );
-
-    log::info!(
-        "Using vkPhysicalDevice: {}",
-        physical_device.properties().device_name,
-    );
-
-    let queue_families = try_all_queue_families(physical_device.as_ref())
-        .expect("vkPhysicalDevice does not have a GRAPHICS / TRANSFER queue.");
-
-    let mut device_extensions = DeviceExtensions::empty();
-    let dmabuf_extensions = get_dmabuf_extensions();
-
-    if physical_device
-        .supported_extensions()
-        .contains(&dmabuf_extensions)
-    {
-        device_extensions = device_extensions.union(&dmabuf_extensions);
-        device_extensions.ext_image_drm_format_modifier = physical_device
-            .supported_extensions()
-            .ext_image_drm_format_modifier;
-    }
-
-    if physical_device
-        .supported_extensions()
-        .ext_physical_device_drm
-    {
-        device_extensions.ext_physical_device_drm = true;
-    }
-
-    let device_extensions_raw = device_extensions
-        .into_iter()
-        .filter_map(|(name, enabled)| {
-            if enabled {
-                Some(ffi::CString::new(name).unwrap().into_raw().cast_const())
-            // want panic
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-
-    // If adding anything here, also add to the native device_create_info below
-    let features = DeviceFeatures {
-        dynamic_rendering: true,
-        descriptor_binding_sampled_image_update_after_bind: true,
-        ..DeviceFeatures::empty()
-    };
-
-    let queue_create_infos = queue_families
-        .iter()
-        .map(|fam| {
-            vk::DeviceQueueCreateInfo::default()
-                .queue_family_index(fam.queue_family_index)
-                .queue_priorities(&fam.priorities)
-        })
-        .collect::<Vec<_>>();
-
-    let mut device_create_info = vk::DeviceCreateInfo::default()
-        .queue_create_infos(&queue_create_infos)
-        .enabled_extension_names(&device_extensions_raw);
-
-    let mut dynamic_rendering =
-        vk::PhysicalDeviceDynamicRenderingFeatures::default().dynamic_rendering(true);
-
-    let mut indexing_features = vk::PhysicalDeviceDescriptorIndexingFeatures::default()
-        .descriptor_binding_sampled_image_update_after_bind(true);
-
-    dynamic_rendering.p_next = device_create_info.p_next.cast_mut();
-    indexing_features.p_next = (&raw mut dynamic_rendering).cast::<c_void>();
-    device_create_info.p_next = &raw mut indexing_features as *const c_void;
-
-    let (device, queues) = unsafe {
-        let vk_device = xr_instance
-            .create_vulkan_device(
-                system,
-                get_instance_proc_addr,
-                physical_device.handle().as_raw() as _,
-                (&raw const device_create_info).cast(),
-            )
-            .expect("XR error creating Vulkan device")
-            .map_err(vk::Result::from_raw)
-            .expect("Vulkan error creating Vulkan device");
-
-        vulkano::device::Device::from_handle(
-            physical_device,
-            vk::Device::from_raw(vk_device as _),
-            DeviceCreateInfo {
-                queue_create_infos: queue_families
-                    .iter()
-                    .map(|fam| QueueCreateInfo {
-                        queue_family_index: fam.queue_family_index,
-                        queues: fam.priorities.clone(),
-                        ..Default::default()
-                    })
-                    .collect::<Vec<_>>(),
-                enabled_extensions: device_extensions,
-                enabled_features: features,
-                ..Default::default()
-            },
-        )
-    };
-
-    log::debug!(
-        "  DMA-buf supported: {}",
-        device.enabled_extensions().ext_external_memory_dma_buf
-    );
-    log::debug!(
-        "  DRM format modifiers supported: {}",
-        device.enabled_extensions().ext_image_drm_format_modifier
-    );
-
-    // Drop the CStrings
-    device_extensions_raw
-        .into_iter()
-        .for_each(|c_string| unsafe {
-            let _ = CString::from_raw(c_string.cast_mut());
-        });
-
-    let (queue_gfx, queue_xfer, queue_capture) = unwrap_queues(queues.collect());
-
-    let gfx = WGfx::new_from_raw(
-        instance,
-        device,
-        queue_gfx,
-        queue_xfer,
-        Format::R8G8B8A8_SRGB,
-    );
-    let extras = WGfxExtras::new(gfx.clone(), queue_capture)?;
-
-    Ok((gfx, extras))
 }
 
 #[allow(clippy::too_many_lines)]
@@ -663,15 +437,6 @@ pub struct GpuFutures {
 }
 
 impl GpuFutures {
-    pub fn execute(
-        &mut self,
-        queue: Arc<Queue>,
-        cmd_buf: Arc<PrimaryAutoCommandBuffer>,
-    ) -> anyhow::Result<()> {
-        self.futures.push(cmd_buf.execute(queue)?.boxed());
-        Ok(())
-    }
-
     pub fn execute_results(&mut self, results: SmallVec<[RenderResult; 2]>) -> anyhow::Result<()> {
         for (i, res) in results.into_iter().enumerate() {
             if i == 0 {

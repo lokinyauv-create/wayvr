@@ -2,11 +2,10 @@ use std::{path::PathBuf, rc::Rc};
 
 use chrono::Timelike;
 use glam::Vec2;
-use strum::EnumCount;
 use wgui::{
 	assets::{AssetPathRef, AssetProvider},
 	components::button::ComponentButton,
-	event::{CallbackDataCommon, StyleSetRequest},
+	event::StyleSetRequest,
 	font_config::WguiFontConfig,
 	globals::WguiGlobals,
 	i18n::Translation,
@@ -22,18 +21,15 @@ use wgui::{
 use wlx_common::{
 	async_executor::AsyncExecutor,
 	audio,
-	dash_interface::{BoxDashInterface, ConfigChangeKind, DashPlayspaceTask},
+	dash_interface::BoxDashInterface,
 	locale::WayVRLangProvider,
 	palette::load_palette,
-	timestep::{self, Timestep},
+	timestep::Timestep,
 };
 
 use crate::{
 	assets,
-	tab::{
-		Tab, TabType, apps::TabApps, donate::TabDonate, games::TabGames, home::TabHome, monado::TabMonado,
-		settings::TabSettings, welcome::TabWelcome,
-	},
+	tab::settings::TabSettings,
 	util::{
 		popup_manager::{MountPopupOnceParams, PopupManager, PopupManagerParams},
 		toast_manager::ToastManager,
@@ -62,8 +58,7 @@ pub struct Frontend<T> {
 	#[allow(dead_code)]
 	state: ParserState,
 
-	current_tab: Option<Box<dyn Tab<T>>>,
-	side_buttons: Vec<(TabType, Rc<ComponentButton>)>,
+	settings: Option<TabSettings<T>>,
 
 	pub tasks: FrontendTasks,
 
@@ -94,8 +89,6 @@ pub struct FrontendUpdateResult {
 pub struct InitParams<'a, T> {
 	pub interface: BoxDashInterface<T>,
 	pub lang_provider: &'a WayVRLangProvider,
-	pub show_welcome: bool,
-	pub has_monado: bool,
 	pub theme: Rc<WguiTheme>,
 	pub color_palette: &'a str,
 	pub executor: AsyncExecutor,
@@ -104,25 +97,22 @@ pub struct InitParams<'a, T> {
 #[derive(Clone)]
 pub enum SoundType {
 	Startup,
-	Launch,
-	Save,
 }
 
 #[derive(Clone)]
 pub enum FrontendTask {
-	SetTab(TabType),
+	/// (Re)builds the settings page, the only content of this dashboard
+	MountSettings,
 	RefreshClock,
 	RefreshBackground,
 	MountPopupOnce(MountPopupOnceParams),
 	RefreshPopupManager,
 	ShowAudioSettings,
 	UpdateAudioSettingsView,
-	RecenterPlayspace,
 	PushToast(Translation),
 	PlaySound(SoundType),
 	OpenURL(Rc<str>),
 	HideDashboard,
-	MarkTutorialGraduated,
 }
 
 impl<T: 'static> Frontend<T> {
@@ -169,8 +159,7 @@ impl<T: 'static> Frontend<T> {
 
 		let tasks = FrontendTasks::new();
 
-		// Settings (look and feel) is the only tab left in this build
-		tasks.push(FrontendTask::SetTab(TabType::Settings));
+		tasks.push(FrontendTask::MountSettings);
 
 		let id_label_time = state.get_widget_id("label_time")?;
 		let id_rect_content = state.get_widget_id("rect_content")?;
@@ -182,8 +171,7 @@ impl<T: 'static> Frontend<T> {
 		let mut frontend = Self {
 			layout,
 			state,
-			current_tab: None,
-			side_buttons: Vec::with_capacity(TabType::COUNT),
+			settings: None,
 			globals,
 			tasks,
 			ticks: 0,
@@ -221,8 +209,6 @@ impl<T: 'static> Frontend<T> {
 
 		let path = match sound_type {
 			SoundType::Startup => "sound/startup.mp3",
-			SoundType::Launch => "sound/app_start.mp3",
-			SoundType::Save => "sound/save.mp3",
 		};
 
 		// try loading a custom sound; if one doesn't exist (or it failed to load), use the built-in asset
@@ -243,12 +229,9 @@ impl<T: 'static> Frontend<T> {
 			self.process_task(&mut params, task)?;
 		}
 
-		let time_ms = timestep::get_micros() / 1000;
-
-		if let Some(mut tab) = self.current_tab.take() {
-			tab.update(self, time_ms as u32, params.data)?;
-
-			self.current_tab = Some(tab);
+		if let Some(mut settings) = self.settings.take() {
+			settings.update(self, params.data)?;
+			self.settings = Some(settings);
 		}
 
 		let res = self.tick(params)?;
@@ -362,19 +345,17 @@ impl<T: 'static> Frontend<T> {
 
 	fn process_task(&mut self, params: &mut FrontendUpdateParams<T>, task: FrontendTask) -> anyhow::Result<()> {
 		match task {
-			FrontendTask::SetTab(tab_type) => self.set_tab(params.data, tab_type)?,
+			FrontendTask::MountSettings => self.mount_settings(params.data)?,
 			FrontendTask::RefreshClock => self.update_time(params.data)?,
 			FrontendTask::RefreshBackground => self.update_background(params.data)?,
 			FrontendTask::MountPopupOnce(popup_params) => self.mount_popup_once(popup_params, params.data)?,
 			FrontendTask::RefreshPopupManager => self.refresh_popup_manager()?,
 			FrontendTask::ShowAudioSettings => self.action_show_audio_settings()?,
 			FrontendTask::UpdateAudioSettingsView => self.action_update_audio_settings()?,
-			FrontendTask::RecenterPlayspace => self.action_recenter_playspace(params.data)?,
 			FrontendTask::PushToast(content) => self.toast_manager.push(content),
 			FrontendTask::PlaySound(sound_type) => self.queue_play_sound(sound_type),
 			FrontendTask::HideDashboard => self.action_hide_dashboard(params.data),
 			FrontendTask::OpenURL(url) => self.action_open_url(url),
-			FrontendTask::MarkTutorialGraduated => self.action_tutorial_graduated(params.data),
 		};
 		Ok(())
 	}
@@ -407,49 +388,17 @@ impl<T: 'static> Frontend<T> {
 		Ok(())
 	}
 
-	fn set_tab(&mut self, data: &mut T, tab_type: TabType) -> anyhow::Result<()> {
-		log::info!("Setting tab to {tab_type:?}");
+	fn mount_settings(&mut self, data: &mut T) -> anyhow::Result<()> {
 		let widget_content = self.state.fetch_widget(&self.layout.state, "content")?;
 		self.layout.remove_children(widget_content.id);
 
-		let padding = tab_type.get_preferred_padding();
 		self.layout.tasks.push(LayoutTask::SetWidgetStyle(
 			widget_content.id,
-			StyleSetRequest::Padding(taffy::Rect::length(padding)),
+			StyleSetRequest::Padding(taffy::Rect::length(16.0_f32)),
 		));
 
-		let (tab_translation, icon_path) = match tab_type {
-			TabType::Welcome => ("GETTING_STARTED", "dashboard/welcome.svg"),
-			TabType::Home => ("HOME_SCREEN", "dashboard/home.svg"),
-			TabType::Apps => ("APPLICATIONS", "dashboard/apps.svg"),
-			TabType::Games => ("GAMES", "dashboard/games.svg"),
-			TabType::Monado => ("MONADO_RUNTIME", "dashboard/monado.svg"),
-			TabType::Settings => ("SETTINGS", "dashboard/settings.svg"),
-			TabType::Donate => ("DONATE.SUPPORT_US", "dashboard/opencollective.svg"),
-		};
-
-		self.set_tab_title(tab_translation, icon_path)?;
-
-		let tab: Box<dyn Tab<T>> = match tab_type {
-			TabType::Welcome => Box::new(TabWelcome::new(self, widget_content.id, data)?),
-			TabType::Home => Box::new(TabHome::new(self, widget_content.id, data)?),
-			TabType::Apps => Box::new(TabApps::new(self, widget_content.id, data)?),
-			TabType::Games => Box::new(TabGames::new(self, widget_content.id)?),
-			TabType::Monado => Box::new(TabMonado::new(self, widget_content.id)?),
-			TabType::Settings => Box::new(TabSettings::new(self, widget_content.id, data)?),
-			TabType::Donate => Box::new(TabDonate::new(self, widget_content.id, data)?),
-		};
-
-		self.current_tab = Some(tab);
-
-		let mut common = CallbackDataCommon {
-			state: &self.layout.state,
-			alterables: &mut self.layout.alterables,
-		};
-
-		for (t, btn) in self.side_buttons.iter() {
-			btn.set_sticky_state(&mut common, tab_type == *t);
-		}
+		self.set_tab_title("SETTINGS", "dashboard/settings.svg")?;
+		self.settings = Some(TabSettings::new(self, widget_content.id, data)?);
 
 		Ok(())
 	}
@@ -514,19 +463,8 @@ impl<T: 'static> Frontend<T> {
 		Ok(())
 	}
 
-	fn action_recenter_playspace(&mut self, data: &mut T) -> anyhow::Result<()> {
-		self.interface.playspace_task(data, DashPlayspaceTask::Recenter)?;
-		Ok(())
-	}
-
 	fn action_hide_dashboard(&mut self, data: &mut T) {
 		self.interface.toggle_dashboard(data);
-	}
-
-	fn action_tutorial_graduated(&mut self, data: &mut T) {
-		let config = self.interface.general_config(data);
-		config.tutorial_graduated = true;
-		self.interface.config_changed(data, ConfigChangeKind::Other);
 	}
 
 	fn action_open_url(&mut self, url: Rc<str>) {

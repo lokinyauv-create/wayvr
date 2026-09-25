@@ -22,8 +22,6 @@ impl TestbedDashboard {
 
 		let frontend = frontend::Frontend::new(frontend::InitParams {
 			interface: Box::new(interface),
-			show_welcome: false,
-			has_monado: true,
 			lang_provider: &lang_provider,
 			theme: Rc::new(WguiTheme::default()),
 			color_palette: &palette_name,

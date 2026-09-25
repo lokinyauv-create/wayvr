@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 use std::process::{Child, Command};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use glam::{Affine3A, Quat, Vec2, Vec3A, Vec3Swizzles};
 
@@ -74,7 +74,6 @@ pub struct InputState {
     pub handsfree_state: PointerState,
     pub picking_focus: FocusPickState,
     processes: Vec<Child>,
-    disable_lerp_until: Instant,
     pub head_yaw_total: f64,
     head_last_yaw: Option<f64>,
 }
@@ -89,20 +88,14 @@ impl InputState {
             processes: Vec::new(),
             handsfree_state: PointerState::default(),
             picking_focus: FocusPickState::None,
-            disable_lerp_until: Instant::now(),
             head_yaw_total: 0.0,
             head_last_yaw: None,
         }
     }
 
-    pub fn should_disable_lerp(&self) -> bool {
-        self.disable_lerp_until > Instant::now()
-    }
-
     pub fn stop_picking(&mut self) {
         if !self.picking_focus.is_none() {
             self.picking_focus = FocusPickState::None;
-            self.disable_lerp_until = Instant::now() + Duration::from_millis(250);
         }
     }
 
@@ -287,15 +280,6 @@ fn debug_print_hand(hand: &Pointer) {
                 hand.now.toggle_dashboard
             );
         }
-        if hand.now.space_drag != hand.before.space_drag {
-            log::debug!("Hand {}: space_drag {}", hand.idx, hand.now.space_drag);
-        }
-        if hand.now.space_rotate != hand.before.space_rotate {
-            log::debug!("Hand {}: space_rotate {}", hand.idx, hand.now.space_rotate);
-        }
-        if hand.now.space_reset != hand.before.space_reset {
-            log::debug!("Hand {}: space_reset {}", hand.idx, hand.now.space_reset);
-        }
         if hand.now.click_modifier_right != hand.before.click_modifier_right {
             log::debug!(
                 "Hand {}: click_modifier_right {}",
@@ -386,11 +370,6 @@ pub struct PointerState {
     pub alt_click: bool,
     pub show_hide: bool,
     pub toggle_dashboard: bool,
-    pub space_drag: bool,
-    pub space_rotate: bool,
-    pub space_reset: bool,
-    pub snap_turn_left: bool,
-    pub snap_turn_right: bool,
     pub click_modifier_right: bool,
     pub click_modifier_middle: bool,
     pub move_mouse: bool,

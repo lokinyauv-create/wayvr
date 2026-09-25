@@ -18,8 +18,6 @@ idmap-derive.workspace = true
 log.workspace = true
 serde = { workspace = true, features = ["rc"] }
 serde_json.workspace = true
-serde_json5.workspace = true
-slotmap.workspace = true
 smol.workspace = true
 strum.workspace = true
 xdg.workspace = true
@@ -33,4 +31,4 @@ rodio = {
 }
 rust-ini = "0.21.3"
 walkdir = "2.5.0"
-wgui = { path = "../wgui/" }
+wgui = { path = "../wgui/", default-features = false }

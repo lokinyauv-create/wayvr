@@ -1,6 +1,6 @@
 use std::{
     ops::Add,
-    sync::{Arc, atomic::Ordering},
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -8,7 +8,7 @@ use dash_frontend::frontend::{self, FrontendTask, FrontendUpdateParams};
 use glam::{Affine2, Affine3A, Quat, Vec2, vec2, vec3};
 use wayvr_ipc::{
     packet_client::WvrProcessLaunchParams,
-    packet_server::{WvrProcess, WvrProcessHandle, WvrWindow, WvrWindowHandle},
+    packet_server::WvrProcessHandle,
 };
 use wgui::{
     event::{
@@ -20,27 +20,20 @@ use wgui::{
     widget::EventResult,
 };
 use wlx_common::{
-    dash_interface::{self, ConfigChangeKind, DashInterface, DashPlayspaceTask},
+    dash_interface::{self, ConfigChangeKind, DashInterface},
     locale::WayVRLangProvider,
     overlays::{BackendAttrib, BackendAttribValue},
 };
 use wlx_common::{
-    timestep::{self, Timestep},
+    timestep::Timestep,
     windowing::{OverlayWindowState, Positioning},
 };
 
-#[cfg(feature = "openxr")]
-use libmonado::{ClientLogic, DeviceLogic};
-
 use crate::{
-    RESTART, RUNNING,
     backend::{
         input::{Haptics, HoverResult, PointerHit, PointerMode},
-        task::{GlobalChange, OverlayTask, PlayspaceTask, TaskType, ToggleMode},
-        wayvr::{
-            process::{KillSignal, ProcessHandle},
-            window::WindowHandle,
-        },
+        task::{GlobalChange, OverlayTask, TaskType},
+        wayvr::process::ProcessHandle,
     },
     config::{none_if_0, save_settings},
     ipc::ipc_server::{gen_args_vec, gen_env_vec},
@@ -90,8 +83,6 @@ impl DashFrontend {
         let frontend = frontend::Frontend::new(frontend::InitParams {
             interface: Box::new(interface),
             lang_provider: &WayVRLangProvider::from_config(&app.session.config),
-            show_welcome: tutorial,
-            has_monado: app.feats.xr_backend.is_open_xr(),
             theme: app.wgui_theme.clone(),
             color_palette: &app.session.config.color_palette,
             executor: app.executor.clone(),
@@ -392,43 +383,6 @@ impl DashInterfaceLive {
 }
 
 impl DashInterface<AppState> for DashInterfaceLive {
-    fn window_list(&mut self, app: &mut AppState) -> anyhow::Result<Vec<WvrWindow>> {
-        let wvr_server = app.wvr_server.as_mut().unwrap();
-        Ok(wvr_server
-            .wm
-            .windows
-            .iter()
-            .map(|(handle, win)| WvrWindow {
-                handle: WindowHandle::as_packet(handle),
-                process_handle: ProcessHandle::as_packet(win.process),
-                size_x: win.size_x,
-                size_y: win.size_y,
-                visible: win.visible,
-            })
-            .collect())
-    }
-
-    fn window_request_close(
-        &mut self,
-        app: &mut AppState,
-        handle: WvrWindowHandle,
-    ) -> anyhow::Result<()> {
-        let wvr_server = app.wvr_server.as_mut().unwrap();
-        wvr_server
-            .wm
-            .remove_window(WindowHandle::from_packet(handle));
-        Ok(())
-    }
-
-    fn process_get(&mut self, app: &mut AppState, handle: WvrProcessHandle) -> Option<WvrProcess> {
-        let wvr_server = app.wvr_server.as_mut().unwrap();
-        let handle = ProcessHandle::from_packet(handle);
-        wvr_server
-            .processes
-            .get(handle)
-            .map(|x| x.to_packet(handle))
-    }
-
     fn process_launch(
         &mut self,
         app: &mut AppState,
@@ -460,71 +414,6 @@ impl DashInterface<AppState> for DashInterfaceLive {
             .map(ProcessHandle::as_packet)
     }
 
-    fn process_list(&mut self, app: &mut AppState) -> anyhow::Result<Vec<WvrProcess>> {
-        let wvr_server = app.wvr_server.as_mut().unwrap();
-        Ok(wvr_server
-            .processes
-            .iter()
-            .map(|(hnd, p)| p.to_packet(hnd))
-            .collect())
-    }
-
-    fn process_terminate(
-        &mut self,
-        app: &mut AppState,
-        handle: WvrProcessHandle,
-    ) -> anyhow::Result<()> {
-        let wvr_server = app.wvr_server.as_mut().unwrap();
-        wvr_server.terminate_process(ProcessHandle::from_packet(handle), KillSignal::Term);
-        Ok(())
-    }
-
-    fn window_set_visible(
-        &mut self,
-        app: &mut AppState,
-        handle: WvrWindowHandle,
-        visible: bool,
-    ) -> anyhow::Result<()> {
-        let wvr_server = app.wvr_server.as_mut().unwrap();
-        let Some(oid) = wvr_server.get_overlay_id(WindowHandle::from_packet(handle)) else {
-            return Ok(());
-        };
-
-        app.tasks
-            .enqueue(TaskType::Overlay(OverlayTask::ToggleOverlay(
-                OverlaySelector::Id(oid),
-                if visible {
-                    ToggleMode::EnsureOn
-                } else {
-                    ToggleMode::EnsureOff
-                },
-            )));
-        Ok(())
-    }
-
-    fn playspace_task(
-        &mut self,
-        app: &mut AppState,
-        mode: DashPlayspaceTask,
-    ) -> anyhow::Result<()> {
-        let task = match mode {
-            DashPlayspaceTask::FixFloor => PlayspaceTask::FixFloor,
-            DashPlayspaceTask::Recenter => PlayspaceTask::Recenter,
-            DashPlayspaceTask::Reset => PlayspaceTask::Reset,
-            DashPlayspaceTask::SaveCenter => PlayspaceTask::SaveCenter,
-            DashPlayspaceTask::ResetCenter => PlayspaceTask::ResetCenter,
-        };
-        app.tasks.enqueue(TaskType::Playspace(task));
-        Ok(())
-    }
-
-    fn desktop_finder<'a>(
-        &'a mut self,
-        data: &'a mut AppState,
-    ) -> &'a mut wlx_common::desktop_finder::DesktopFinder {
-        &mut data.desktop_finder
-    }
-
     fn general_config<'a>(
         &'a mut self,
         data: &'a mut AppState,
@@ -548,26 +437,8 @@ impl DashInterface<AppState> for DashInterfaceLive {
                         GlobalChange::Settings,
                     )));
             }
-            ConfigChangeKind::EnvironmentBlend => {
-                #[cfg(feature = "openxr")]
-                {
-                    use crate::backend::task::OpenXrTask;
-                    data.tasks
-                        .enqueue(TaskType::OpenXR(OpenXrTask::EnvironmentChanged));
-                }
-            }
-            ConfigChangeKind::WvrServerConfig => {
-                if let Some(wvr_server) = data.wvr_server.as_mut() {
-                    wvr_server.config_changed(&data.session.config);
-                }
-            }
             _ => {}
         }
-    }
-
-    fn restart(&mut self, _data: &mut AppState) {
-        RUNNING.store(false, Ordering::Relaxed);
-        RESTART.store(true, Ordering::Relaxed);
     }
 
     fn toggle_dashboard(&mut self, data: &mut AppState) {
@@ -578,250 +449,4 @@ impl DashInterface<AppState> for DashInterfaceLive {
     fn get_feats(&mut self, data: &mut AppState) -> dash_interface::InterfaceFeats {
         data.feats
     }
-
-    fn hmd_stats(&mut self, data: &mut AppState) -> dash_interface::HmdStats {
-        dash_interface::HmdStats {
-            rotations_rad: data.input_state.head_yaw_total as f32,
-            session_time_ms: timestep::get_micros() / 1000,
-            ipd: data.input_state.ipd,
-        }
-    }
-
-    #[cfg(feature = "openxr")]
-    fn monado_client_list(
-        &mut self,
-        app: &mut AppState,
-        filtered: bool,
-    ) -> anyhow::Result<Vec<dash_interface::MonadoClient>> {
-        let Some(monado) = &mut app.monado_state else {
-            return Ok(Vec::new()); // no monado available
-        };
-
-        let clients = if filtered {
-            monado_list_clients_filtered(&mut monado.ipc)?
-        } else {
-            monado.ipc.clients()?.into_iter().collect()
-        };
-
-        let mut res = Vec::<dash_interface::MonadoClient>::new();
-
-        for mut client in clients {
-            let client_id = client.id();
-            let name = client.name()?;
-            let state = client.state()?;
-
-            res.push(dash_interface::MonadoClient {
-                id: client_id as i64,
-                name,
-                is_primary: state.contains(libmonado::ClientState::ClientPrimaryApp),
-                is_active: state.contains(libmonado::ClientState::ClientSessionActive),
-                is_visible: state.contains(libmonado::ClientState::ClientSessionVisible),
-                is_focused: state.contains(libmonado::ClientState::ClientSessionFocused),
-                is_overlay: state.contains(libmonado::ClientState::ClientSessionOverlay),
-                is_io_active: state.contains(libmonado::ClientState::ClientIoActive),
-            });
-        }
-
-        Ok(res)
-    }
-
-    #[cfg(feature = "openxr")]
-    fn monado_client_focus(&mut self, app: &mut AppState, client_id: i64) -> anyhow::Result<()> {
-        let Some(monado) = &mut app.monado_state else {
-            return Ok(()); // no monado available
-        };
-
-        monado_client_focus(&mut monado.ipc, client_id)
-    }
-
-    #[cfg(feature = "openxr")]
-    fn monado_brightness_get(&mut self, app: &mut AppState) -> Option<f32> {
-        let Some(monado) = &mut app.monado_state else {
-            return None;
-        };
-
-        monado_get_brightness(&mut monado.ipc)
-    }
-
-    #[cfg(feature = "openxr")]
-    fn monado_brightness_set(&mut self, app: &mut AppState, brightness: f32) -> Option<()> {
-        let Some(monado) = &mut app.monado_state else {
-            return None;
-        };
-
-        monado_set_brightness(&mut monado.ipc, brightness).ok()
-    }
-
-    #[cfg(feature = "openxr")]
-    fn monado_metrics_set_enabled(&mut self, app: &mut AppState, enabled: bool) -> bool {
-        #[cfg(feature = "feat-monado-metrics")]
-        {
-            let Some(monado) = &mut app.monado_state else {
-                return false;
-            };
-
-            if let Err(e) = monado.set_metrics_enabled(enabled) {
-                log::error!("failed to enable metrics: {e:?}");
-                return false;
-            }
-            true
-        }
-        #[cfg(not(feature = "feat-monado-metrics"))]
-        #[allow(path_statements)]
-        {
-            app;
-            enabled;
-            false
-        }
-    }
-
-    #[cfg(feature = "openxr")]
-    #[allow(clippy::match_same_arms)]
-    fn monado_metrics_dump_session_frames(
-        &mut self,
-        app: &mut AppState,
-    ) -> Vec<dash_interface::MonadoDumpSessionFrame> {
-        #[cfg(feature = "feat-monado-metrics")]
-        {
-            let Some(monado) = &mut app.monado_state else {
-                return Vec::new();
-            };
-            let Some(metrics) = &mut monado.metrics else {
-                return Vec::new(); // metrics not enabled or not available
-            };
-
-            metrics
-                .dump_records()
-                .iter()
-                .filter_map(|record| {
-                    use crate::subsystem::monado_metrics::proto::record;
-                    let record = record.record?;
-                    match record {
-                        record::Record::SessionFrame(sframe) => {
-                            // map it to our struct
-                            Some(dash_interface::MonadoDumpSessionFrame {
-                                session_id: sframe.session_id,
-                                frame_id: sframe.frame_id,
-                                predicted_frame_time_ns: sframe.predicted_frame_time_ns,
-                                predicted_wake_up_time_ns: sframe.predicted_wake_up_time_ns,
-                                predicted_gpu_done_time_ns: sframe.predicted_gpu_done_time_ns,
-                                predicted_display_time_ns: sframe.predicted_display_time_ns,
-                                predicted_display_period_ns: sframe.predicted_display_period_ns,
-                                display_time_ns: sframe.display_time_ns,
-                                when_predicted_ns: sframe.when_predicted_ns,
-                                when_wait_woke_ns: sframe.when_wait_woke_ns,
-                                when_begin_ns: sframe.when_begin_ns,
-                                when_delivered_ns: sframe.when_delivered_ns,
-                                when_gpu_done_ns: sframe.when_gpu_done_ns,
-                                discarded: sframe.discarded,
-                            })
-                        }
-                        record::Record::Version(_) => None,
-                        record::Record::Used(_) => None,
-                        record::Record::SystemFrame(_) => None,
-                        record::Record::SystemGpuInfo(_) => None,
-                        record::Record::SystemPresentInfo(_) => None,
-                    }
-                })
-                .collect()
-        }
-        #[cfg(not(feature = "feat-monado-metrics"))]
-        #[allow(path_statements)]
-        {
-            app;
-            Vec::new()
-        }
-    }
-
-    #[cfg(not(feature = "openxr"))]
-    fn monado_client_list(
-        &mut self,
-        _: &mut AppState,
-        _filtered: bool,
-    ) -> anyhow::Result<Vec<dash_interface::MonadoClient>> {
-        anyhow::bail!("Not supported in this build.")
-    }
-    #[cfg(not(feature = "openxr"))]
-    fn monado_client_focus(&mut self, _: &mut AppState, _: i64) -> anyhow::Result<()> {
-        anyhow::bail!("Not supported in this build.")
-    }
-    #[cfg(not(feature = "openxr"))]
-    fn monado_brightness_get(&mut self, _: &mut AppState) -> Option<f32> {
-        None
-    }
-    #[cfg(not(feature = "openxr"))]
-    fn monado_brightness_set(&mut self, _: &mut AppState, _: f32) -> Option<()> {
-        None
-    }
-
-    #[cfg(not(feature = "openxr"))]
-    fn monado_metrics_set_enabled(&mut self, _: &mut AppState, _enabled: bool) -> bool {
-        // not supported in this build
-        false
-    }
-
-    #[cfg(not(feature = "openxr"))]
-    fn monado_metrics_dump_session_frames(
-        &mut self,
-        _: &mut AppState,
-    ) -> Vec<dash_interface::MonadoDumpSessionFrame> {
-        Vec::new() // not supported in this build
-    }
-}
-
-#[cfg(feature = "openxr")]
-fn monado_get_brightness(monado: &mut libmonado::Monado) -> Option<f32> {
-    let device = monado.device_from_role(libmonado::DeviceRole::Head).ok()?;
-    device.brightness().ok()
-}
-
-#[cfg(feature = "openxr")]
-fn monado_set_brightness(monado: &mut libmonado::Monado, brightness: f32) -> anyhow::Result<()> {
-    let device = monado.device_from_role(libmonado::DeviceRole::Head)?;
-    device.set_brightness(brightness, false)?;
-    Ok(())
-}
-
-#[cfg(feature = "openxr")]
-fn monado_list_clients_filtered(
-    monado: &mut libmonado::Monado,
-) -> anyhow::Result<Vec<libmonado::Client<'_>>> {
-    let mut clients: Vec<_> = monado.clients()?.into_iter().collect();
-
-    let clients: Vec<_> = clients
-        .iter_mut()
-        .filter_map(|client| {
-            use libmonado::ClientState;
-            let Ok(state) = client.state() else {
-                return None;
-            };
-
-            if !state.contains(ClientState::ClientSessionActive)
-                || state.contains(ClientState::ClientSessionOverlay)
-            {
-                return None;
-            }
-
-            Some(client.clone())
-        })
-        .collect();
-
-    Ok(clients)
-}
-
-#[cfg(feature = "openxr")]
-fn monado_client_focus(monado: &mut libmonado::Monado, client_id: i64) -> anyhow::Result<()> {
-    let clients = monado_list_clients_filtered(monado)?;
-
-    for mut client in clients {
-        if client.id() != client_id as u32 {
-            continue;
-        }
-
-        log::info!("Monado focus set to {client_id}");
-        client.set_primary()?;
-        return Ok(());
-    }
-
-    Ok(())
 }

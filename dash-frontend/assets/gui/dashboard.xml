@@ -1,28 +1,9 @@
 <layout version="2">
   <vars>
-    <var key="side_size" value="48" />
     <var key="top_size" value="40" />
-    <var key="side_sprite_size" value="26" />
-    <var key="side_button_size" value="48" />
   </vars>
 
-  <template name="SideButton">
-    <Button
-      id="${id}"
-      round="100%"
-      width="~side_button_size"
-      height="~side_button_size"
-      color="background_contrast(transparent)"
-      border_color="background_contrast"
-      tooltip="${tooltip}"
-      tooltip_side="${tooltip_side}"
-    >
-      <sprite src_builtin="${src_builtin}" width="~side_sprite_size" height="~side_sprite_size" />
-    </Button>
-  </template>
-
   <elements>
-    <!-- left/right separator (menu and rest) -->
     <div flex_direction="row" gap="8" width="100%" height="100%" padding="4" interactable="0">
       <!-- REST -->
       <!-- top/content/bottom panel separator -->

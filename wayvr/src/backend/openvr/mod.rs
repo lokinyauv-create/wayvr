@@ -76,7 +76,6 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
     let mut system_mgr = context.system_mngr();
     let mut overlay_mgr = context.overlay_mngr();
     let mut settings_mgr = context.settings_mngr();
-    let mut chaperone_mgr = context.chaperone_setup_mngr();
     let mut compositor_mgr = context.compositor_mngr();
 
     let device_extensions_fn = |device: &PhysicalDevice| {
@@ -123,8 +122,8 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
 
     let mut overlays = OverlayWindowManager::<OpenVrOverlayData>::new(&mut app, args.headless)?;
 
-    let mut playspace = playspace::PlayspaceMover::new();
-    playspace.playspace_changed(&mut compositor_mgr, &mut chaperone_mgr);
+    let mut playspace = playspace::Playspace::new();
+    playspace.playspace_changed(&mut compositor_mgr);
 
     set_action_manifest(&mut input_mgr)?;
 
@@ -187,7 +186,7 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
                         next_device_update = Instant::now();
                     }
                     EV_SEAT_ZERO | EV_STAND_ZERO | EV_CHAP_CHANGED | EV_SCENE_CHANGED => {
-                        playspace.playspace_changed(&mut compositor_mgr, &mut chaperone_mgr);
+                        playspace.playspace_changed(&mut compositor_mgr);
                     }
                     EV_IPD_CHANGED => {
                         if let Ok(ipd) = system_mgr.get_tracked_device_property::<f32>(
@@ -238,16 +237,11 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
                 TaskType::Overlay(task) => {
                     overlays.handle_task(&mut app, task)?;
                 }
-                TaskType::Playspace(task) => {
-                    playspace.handle_task(&mut app, &mut chaperone_mgr, &mut overlays, task);
-                }
                 TaskType::OpenVR(task) => match task {
                     OpenVrTask::ColorGain(channel, value) => {
                         let _ = adjust_gain(&mut settings_mgr, channel, value);
                     }
                 },
-                #[cfg(feature = "openxr")]
-                TaskType::OpenXR(_) => {}
             }
         }
 
@@ -289,8 +283,6 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
 
         overlays.values_mut().for_each(|o| o.config.tick(&mut app));
 
-        playspace.update(&mut chaperone_mgr, &mut overlays, &mut app);
-
         current_lines.clear();
 
         let haptics = interact(&mut overlays, &mut app, &mut current_lines);
@@ -316,11 +308,6 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
 
         for o in overlays.values_mut() {
             o.after_input(&mut overlay_mgr, &mut app)?;
-        }
-
-        #[cfg(feature = "osc")]
-        if let Some(ref mut sender) = app.osc_sender {
-            let _ = sender.send_params(&overlays, &app.input_state.devices);
         }
 
         if let Err(e) =

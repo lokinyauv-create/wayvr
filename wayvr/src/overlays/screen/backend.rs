@@ -209,8 +209,7 @@ impl OverlayBackend for ScreenBackend {
         }
 
         if let Some(frame) = self.capture.receive() {
-            let stereo = self.stereo.unwrap_or(StereoMode::None);
-            let mut meta = frame.get_frame_meta(&app.session.config, stereo);
+            let mut meta = frame.get_frame_meta(&app.session.config);
 
             if let Some(stereo) = self.stereo {
                 // Apply stereo full frame logic
@@ -240,6 +239,7 @@ impl OverlayBackend for ScreenBackend {
                     self.interaction_transform = Some(ui_transform(meta.extent));
                 }
             } else {
+                let stereo = self.stereo.unwrap_or(StereoMode::None);
                 let pipeline =
                     ScreenPipeline::new(&meta, app, stereo, [0., 0.], frame.format.transform)?;
                 self.pipeline = Some(pipeline);

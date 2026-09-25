@@ -70,11 +70,6 @@ struct Args {
     #[arg(long)]
     openvr: bool,
 
-    #[cfg(feature = "openxr")]
-    /// Force OpenXR backend
-    #[arg(long)]
-    openxr: bool,
-
     /// Show the working set of overlay on startup. Also skips tutorial.
     #[arg(long)]
     show: bool,
@@ -199,32 +194,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[allow(unused_mut, clippy::similar_names)]
 fn auto_run(args: Args, used_backend: &mut Option<XrBackend>) {
-    let mut tried_xr = false;
-    let mut tried_vr = false;
-
     loop {
-        #[cfg(feature = "openxr")]
-        if !args_get_openvr(&args) {
-            use crate::backend::{BackendError, openxr::openxr_run};
-            tried_xr = true;
-            match openxr_run(&args, init_run_params()) {
-                Ok(()) => {
-                    used_backend.replace(XrBackend::OpenXR);
-                    return;
-                }
-                Err(BackendError::NotSupported) => (),
-                Err(e) => {
-                    used_backend.replace(XrBackend::OpenXR);
-                    log::error!("{e:?}");
-                    return;
-                }
-            }
-        }
-
         #[cfg(feature = "openvr")]
-        if !args_get_openxr(&args) {
+        {
             use crate::backend::{BackendError, openvr::openvr_run};
-            tried_vr = true;
             match openvr_run(&args, init_run_params()) {
                 Ok(()) => {
                     used_backend.replace(XrBackend::OpenVR);
@@ -255,12 +228,7 @@ fn auto_run(args: Args, used_backend: &mut Option<XrBackend>) {
 
     log::error!("No more backends to try");
 
-    let instructions_key = match (tried_xr, tried_vr) {
-        (true, true) => "NOTIFICATION.NOT_RUNNING_XR_VR",
-        (false, true) => "NOTIFICATION.NOT_RUNNING_VR",
-        (true, false) => "NOTIFICATION.NOT_RUNNING_XR",
-        _ => "NOTIFICATION.INVALID_ARGS",
-    };
+    let instructions_key = "NOTIFICATION.NOT_RUNNING_VR";
 
     let run_params = init_run_params();
 
@@ -275,8 +243,8 @@ fn auto_run(args: Args, used_backend: &mut Option<XrBackend>) {
 
     let _ = DbusConnector::notify_send("WayVR", &instructions, 1, 30000, 0, false);
 
-    #[cfg(not(any(feature = "openvr", feature = "openxr")))]
-    compile_error!("No VR support! Enable either openvr or openxr features!");
+    #[cfg(not(feature = "openvr"))]
+    compile_error!("No VR support! Enable the openvr feature!");
 
     #[cfg(not(any(feature = "wayland", feature = "x11")))]
     compile_error!("No desktop support! Enable either wayland or x11 features!");
@@ -288,17 +256,6 @@ const fn args_get_openvr(args: &Args) -> bool {
     let ret = args.openvr;
 
     #[cfg(not(feature = "openvr"))]
-    let ret = false;
-
-    ret
-}
-
-#[allow(dead_code, unused_variables)]
-const fn args_get_openxr(args: &Args) -> bool {
-    #[cfg(feature = "openxr")]
-    let ret = args.openxr;
-
-    #[cfg(not(feature = "openxr"))]
     let ret = false;
 
     ret

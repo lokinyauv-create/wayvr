@@ -59,10 +59,6 @@ impl HidWrapper {
         }
     }
 
-    pub const fn get_input_focus(&self) -> InputFocus {
-        self.input_focus
-    }
-
     pub fn send_key_routed(
         &mut self,
         wvr_server: Option<&mut WvrServerState>,

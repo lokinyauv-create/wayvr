@@ -11,7 +11,7 @@ use wgui::{i18n::Translation, log::LogErr};
 use wlx_common::{
     astr_containers::{AStrMap, AStrMapExt},
     config::SerializedWindowSet,
-    overlays::{BackendAttrib, BackendAttribValue, ToastTopic},
+    overlays::{BackendAttrib, ToastTopic},
 };
 
 use crate::{
@@ -140,13 +140,6 @@ where
 
         let alttab_help = OverlayWindowData::from_config(create_alltab_help(app)?);
         me.add(alttab_help, app);
-
-        #[cfg(feature = "whisper")]
-        {
-            use crate::overlays::whisper::create_whisper;
-            let whisper = OverlayWindowData::from_config(create_whisper(app)?);
-            me.add(whisper, app);
-        }
 
         let custom_panels = app.session.config.custom_panels.clone();
         for name in custom_panels {
@@ -737,14 +730,6 @@ impl<T> OverlayWindowManager<T> {
         self.edit_mode
     }
 
-    pub const fn get_current_set(&self) -> Option<usize> {
-        self.current_set
-    }
-
-    pub const fn get_total_sets(&self) -> usize {
-        self.sets.len()
-    }
-
     pub fn list_overlays(&self, visible: bool, hidden: bool) -> Vec<String> {
         let current = self
             .current_set
@@ -888,10 +873,6 @@ impl<T> OverlayWindowManager<T> {
     #[allow(dead_code)]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (OverlayID, &'_ mut OverlayWindowData<T>)> {
         self.overlays.iter_mut()
-    }
-
-    pub fn values(&self) -> impl Iterator<Item = &'_ OverlayWindowData<T>> {
-        self.overlays.values()
     }
 
     pub fn values_mut(&mut self) -> impl Iterator<Item = &'_ mut OverlayWindowData<T>> {
@@ -1150,20 +1131,11 @@ impl<T> OverlayWindowManager<T> {
             if matches!(data.config.category, OverlayCategory::Internal) {
                 continue;
             }
-            let icon = if let Some(BackendAttribValue::Icon(icon)) =
-                data.config.backend.get_attrib(BackendAttrib::Icon)
-            {
-                Some(icon)
-            } else {
-                None
-            };
-
             meta.push(OverlayMeta {
                 id,
                 name: data.config.name.clone(),
                 category: data.config.category,
                 visible: data.config.is_active(),
-                icon,
             });
         }
 

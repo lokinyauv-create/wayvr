@@ -123,34 +123,6 @@ impl<ViewType: ViewTrait> PopupHolder<ViewType> {
 		state.on_view_close = on_view_close;
 	}
 
-	// Get underlying ViewType object in a closure and return its value
-	// example usage:
-	//
-	// ```rs
-	// holder.with_view(|view| {
-	//   view.foo();
-	// })
-	// ```
-	//
-	pub fn with_view<F, R>(&self, f: F) -> Option<R>
-	where
-		F: FnOnce(&mut ViewType) -> R,
-	{
-		let mut state = self.state.borrow_mut();
-		state.view.as_mut().map(f)
-	}
-
-	// Same as with_view, but the closure expects a simple anyhow::Result<()> type
-	pub fn with_view_res<F>(&self, f: F) -> anyhow::Result<()>
-	where
-		F: FnOnce(&mut ViewType) -> anyhow::Result<()>,
-	{
-		if let Some(res) = self.with_view(f) {
-			return res;
-		}
-		Ok(())
-	}
-
 	pub fn get_close_callback(&self, layout: &Layout) -> Box<dyn FnOnce()>
 	where
 		ViewType: 'static,

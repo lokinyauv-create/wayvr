@@ -2,7 +2,6 @@
 resolver = "3"
 members = [
   "dash-frontend",
-  "scripts/prost_build",
   "uidev",
   "wayvr",
   "wayvr-ipc",

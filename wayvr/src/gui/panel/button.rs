@@ -4,7 +4,6 @@ use std::{
     rc::Rc,
     str::FromStr,
     sync::{Arc, atomic::Ordering},
-    time::{Duration, Instant},
 };
 
 use anyhow::Context;
@@ -14,7 +13,6 @@ use wgui::{
         CallbackData, CallbackMetadata, EventCallback, EventListenerKind, MouseButtonIndex,
         StyleSetRequest,
     },
-    i18n::Translation,
     layout::Layout,
     log::LogErr,
     parser::{self, AttribPair, CustomAttribsInfoOwned, Fetchable, ParserState, TemplateParams},
@@ -22,16 +20,16 @@ use wgui::{
     widget::EventResult,
     windowing::context_menu::{Blueprint, ContextMenu, OpenParams},
 };
-use wlx_common::{config::HandsfreePointer, overlays::ToastTopic};
+use wlx_common::config::HandsfreePointer;
 
 use crate::{
     RESTART, RUNNING,
     backend::{
-        task::{OverlayTask, PlayspaceTask, SpawnPos, TaskType, ToggleMode},
+        task::{OverlayTask, SpawnPos, TaskType, ToggleMode},
         wayvr::process::KillSignal,
     },
     gui::panel::{log_cmd_invalid_arg, log_cmd_missing_arg},
-    overlays::{custom::create_custom, toast::Toast, wayvr::WvrCommand},
+    overlays::{custom::create_custom, wayvr::WvrCommand},
     state::AppState,
     subsystem::hid::VirtualKey,
     windowing::{OverlaySelector, backend::OverlayEventData, window::OverlayCategory},
@@ -586,67 +584,6 @@ pub(super) fn setup_custom_button<S: 'static>(
                         )));
                     Ok(EventResult::Consumed)
                 }),
-                "::PlayspaceReset" => Box::new(move |_common, data, app, _| {
-                    if !test_button(data) || !test_duration(&button, app) {
-                        return Ok(EventResult::Pass);
-                    }
-
-                    app.tasks.enqueue(TaskType::Playspace(PlayspaceTask::Reset));
-                    Ok(EventResult::Consumed)
-                }),
-                "::PlayspaceRecenter" => Box::new(move |_common, data, app, _| {
-                    if !test_button(data) || !test_duration(&button, app) {
-                        return Ok(EventResult::Pass);
-                    }
-
-                    app.tasks
-                        .enqueue(TaskType::Playspace(PlayspaceTask::Recenter));
-                    Ok(EventResult::Consumed)
-                }),
-                "::PlayspaceFixFloor" => Box::new(move |_common, data, app, _| {
-                    if !test_button(data) || !test_duration(&button, app) {
-                        return Ok(EventResult::Pass);
-                    }
-
-                    let globals = app.wgui_globals.clone();
-
-                    let duration_secs = 5;
-                    let now = Instant::now();
-
-                    for i in 0..duration_secs {
-                        let text = globals.i18n().translate_and_replace(
-                            "TOAST.FIXING_FLOOR_IN_X_SECS",
-                            ("{SECONDS}", &format!("{}", duration_secs - i)),
-                        );
-                        Toast::new(
-                            ToastTopic::System,
-                            Some(Translation::from_raw_text_string(text)),
-                            Translation::from_translation_key("TOAST.ONE_CONTROLLER_ON_FLOOR"),
-                        )
-                        .with_timeout(1.0)
-                        .with_lerp_amount(1.0)
-                        .with_animate(false)
-                        .with_sound(i == 0)
-                        .submit_at(app, now + Duration::from_secs(i as _));
-                    }
-
-                    app.audio_sample_player
-                        .play_sample(&mut app.audio_system, "fix_floor");
-
-                    let deadline = now + Duration::from_secs(duration_secs);
-
-                    app.tasks
-                        .enqueue_at(TaskType::Playspace(PlayspaceTask::FixFloor), deadline);
-
-                    Toast::new(
-                        ToastTopic::System,
-                        Some(Translation::from_translation_key("DONE")),
-                        Translation::from_raw_text(""),
-                    )
-                    .with_timeout(2.0)
-                    .submit_at(app, deadline);
-                    Ok(EventResult::Consumed)
-                }),
                 "::Shutdown" => Box::new(move |_common, data, app, _| {
                     if !test_button(data) || !test_duration(&button, app) {
                         return Ok(EventResult::Pass);
@@ -742,56 +679,6 @@ pub(super) fn setup_custom_button<S: 'static>(
                         }
 
                         let _ = shell_on_action(&state).inspect_err(|e| log::error!("{e:?}"));
-                        Ok(EventResult::Consumed)
-                    })
-                }
-                #[cfg(feature = "osc")]
-                "::OscSend" => {
-                    use crate::subsystem::osc::parse_osc_value;
-
-                    let Some(address) = args.next().map(std::string::ToString::to_string) else {
-                        log_cmd_missing_arg(parser_state, TAG, name, command);
-                        return;
-                    };
-
-                    let mut osc_args = vec![];
-
-                    // collect arguments specified in the initial string
-                    for arg in args {
-                        if let Ok(osc_arg) = parse_osc_value(arg).inspect_err(|e| {
-                            let msg = format!("Could not parse OSC value \"{arg}\": {e:?}");
-                            log_cmd_invalid_arg(parser_state, TAG, name, command, &msg);
-                        }) {
-                            osc_args.push(osc_arg);
-                        }
-                    }
-
-                    // collect arguments from _arg<n> attributes.
-                    let mut arg_index = 0;
-                    while let Some(arg) = attribs.get_value(&format!("_arg{arg_index}"))
-                        && let Ok(osc_arg) = parse_osc_value(arg).inspect_err(|e| {
-                            let msg = format!("Could not parse OSC value \"{arg}\": {e:?}");
-                            log_cmd_invalid_arg(parser_state, TAG, name, command, &msg);
-                        })
-                    {
-                        osc_args.push(osc_arg);
-                        arg_index += 1;
-                    }
-
-                    Box::new(move |_common, data, app, _| {
-                        if !test_button(data) || !test_duration(&button, app) {
-                            return Ok(EventResult::Pass);
-                        }
-
-                        let Some(sender) = app.osc_sender.as_mut() else {
-                            log::error!("OscSend: sender is not available.");
-                            return Ok(EventResult::Consumed);
-                        };
-
-                        let _ = sender
-                            .send_message(address.clone(), osc_args.clone())
-                            .inspect_err(|e| log::error!("OscSend: Could not send message: {e:?}"));
-
                         Ok(EventResult::Consumed)
                     })
                 }

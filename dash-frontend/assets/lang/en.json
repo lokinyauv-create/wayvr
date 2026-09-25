@@ -88,8 +88,6 @@
 				"SPACE_DRAG": "Playspace drag",
 				"SPACE_ROTATE": "Playspace rotate",
 				"SPACE_RESET": "Playspace reset",
-				"SNAP_TURN_LEFT": "Snap turn left",
-				"SNAP_TURN_RIGHT": "Snap turn right",
 				"CLICK_MODIFIER_RIGHT": "Right-click modifier",
 				"CLICK_MODIFIER_MIDDLE": "Middle-click modifier",
 				"MOVE_MOUSE": "Move mouse (if off by default)",

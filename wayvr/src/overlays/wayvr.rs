@@ -589,7 +589,6 @@ impl OverlayBackend for WvrWindowBackend {
             extent: surf.image.extent_u32arr(),
             format: surf.image.format(),
             clear: WGfxClearMode::Clear([0.0, 0.0, 0.0, 0.0]),
-            stereo: self.stereo.unwrap_or(StereoMode::None),
             ..Default::default()
         };
 
