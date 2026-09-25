@@ -106,15 +106,6 @@
             },
             {
                "inputs" : {
-                  "click" : {
-                     "output" : "/actions/default/in/spacedrag"
-                  }
-               },
-               "mode" : "button",
-               "path" : "/user/hand/left/input/trackpad"
-            },
-            {
-               "inputs" : {
                   "grab" : {
                      "output" : "/actions/default/in/grab"
                   }

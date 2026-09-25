@@ -14,6 +14,10 @@ use crate::{
 
 use super::{helpers::Affine3AConvert, overlay::OpenVrOverlayData};
 
+/// This build never writes the SteamVR zone (chaperone): a left trackpad press in games
+/// started space drags that rewrote the zone every frame.
+const MOVES_ZONE: bool = false;
+
 struct MoverData<T> {
     pose: Affine3A,
     hand: usize,
@@ -44,6 +48,10 @@ impl PlayspaceMover {
         overlays: &mut OverlayWindowManager<OpenVrOverlayData>,
         task: PlayspaceTask,
     ) {
+        if !MOVES_ZONE {
+            log::debug!("Ignoring playspace task: zone changes are disabled");
+            return;
+        }
         match task {
             PlayspaceTask::FixFloor => {
                 self.fix_floor(chaperone_mgr, app, overlays);
@@ -70,6 +78,9 @@ impl PlayspaceMover {
         overlays: &mut OverlayWindowManager<OpenVrOverlayData>,
         app: &mut AppState,
     ) {
+        if !MOVES_ZONE {
+            return;
+        }
         let universe = self.universe.clone();
 
         if let Some(data) = self.rotate.as_mut() {
