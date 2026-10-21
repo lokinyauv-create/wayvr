@@ -91,6 +91,9 @@
             <Button id="btn_keyboard" macro="button_style" _press="::OverlayToggle kbd" tooltip="EDIT_MODE.KEYBOARD" tooltip_side="left">
               <sprite src_builtin="@/watch/keyboard.svg" width="40" height="40" />
             </Button>
+            <Button id="btn_trackers" macro="button_style" _press="::OverlayToggle trackers" tooltip_str="Калібрування трекерів" tooltip_side="left">
+              <sprite width="40" height="40" src="@/watch/track.svg" />
+            </Button>
             <Button id="btn_edit_mode" macro="button_style" _press="::EditToggle" tooltip="WATCH.EDIT_MODE" tooltip_side="left">
               <sprite width="40" height="40" src="@/watch/edit.svg" />
             </Button>
@@ -111,6 +114,13 @@
             <!-- These are examples for uidev -->
             <Screen idx="0" display="H1" name="HDMI-A-1" />
             <Screen idx="1" display="D2" name="DP-2"/>
+          </div>
+          <VerticalSeparator />
+          <!-- Bring screens and keyboard back in front of the user -->
+          <div gap="4">
+            <Button id="btn_reset_layout" macro="button_style" _press="::ResetLayout" tooltip_str="Скинути монітори й клавіатуру" tooltip_side="top">
+              <sprite width="40" height="40" src="@/watch/reset.svg" />
+            </Button>
           </div>
         </div>
       </div>

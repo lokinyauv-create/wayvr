@@ -21,7 +21,7 @@ use crate::subsystem::input::InputFocus;
 use crate::windowing::backend::OverlayEventData;
 use crate::windowing::manager::OverlayWindowManager;
 use crate::windowing::window::{self, OverlayCategory, OverlayWindowData, realign, scalar_scale};
-use crate::windowing::{OverlayID, OverlaySelector};
+use crate::windowing::{OverlayID, OverlaySelector, magnet};
 
 use super::task::TaskType;
 
@@ -877,13 +877,7 @@ fn start_grab(par: StartGrabParams) {
         }),
     )));
 
-    // Show anchor
-    app.tasks.enqueue(TaskType::Overlay(OverlayTask::Modify(
-        OverlaySelector::Name(ANCHOR_NAME.clone()),
-        Box::new(|app, o| {
-            o.activate(app, true);
-        }),
-    )));
+    // The yellow "Center" anchor marker is no longer shown while grabbing
 
     if let Some(hand) = pointer.hand()
         && !app.session.config.hide_grab_help
@@ -1012,6 +1006,21 @@ where
                     scale,
                     app.session.config.snap_angle_deg,
                 );
+            }
+            if overlay.config.category == OverlayCategory::Keyboard {
+                // the keyboard clings to the nearest screen and slides along it
+                let kbd_width = scalar_scale(&overlay_state.transform);
+                let kbd_height = overlay.config.backend.frame_meta().map_or(kbd_width * 0.4, |m| {
+                    kbd_width * m.extent[1] as f32 / m.extent[0].max(1) as f32
+                });
+                match magnet::snap(&app.screen_magnets, &overlay_state.transform, kbd_height) {
+                    Some((transform, dock)) => {
+                        overlay_state.transform = transform;
+                        overlay_state.positioning = Positioning::Floating;
+                        app.keyboard_dock = Some(dock);
+                    }
+                    None => app.keyboard_dock = None,
+                }
             }
             overlay.config.pause_movement = true;
             overlay.config.dirty = true;

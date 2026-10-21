@@ -55,6 +55,9 @@ pub struct AppState {
     pub screens: SmallVec<[ScreenMeta; 8]>,
     pub anchor: Affine3A,
     pub anchor_grabbed: bool,
+    /// Visible screens, refreshed every frame; the keyboard clings to them
+    pub screen_magnets: Vec<crate::windowing::magnet::ScreenMagnet>,
+    pub keyboard_dock: Option<crate::windowing::magnet::KeyboardDock>,
 
     pub wgui_globals: WguiGlobals,
     pub wgui_theme: Rc<WguiTheme>,
@@ -184,6 +187,8 @@ impl AppState {
             screens: smallvec![],
             anchor: Affine3A::IDENTITY,
             anchor_grabbed: false,
+            screen_magnets: Vec::new(),
+            keyboard_dock: None,
             wgui_theme: Rc::new(theme),
             wgui_globals: params.wgui_globals,
             executor,

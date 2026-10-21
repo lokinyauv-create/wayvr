@@ -6,5 +6,6 @@ pub mod keyboard;
 pub mod passthrough;
 pub mod screen;
 pub mod toast;
+pub mod trackers;
 pub mod watch;
 pub mod wayvr;

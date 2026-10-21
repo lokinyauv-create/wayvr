@@ -46,6 +46,7 @@ pub mod device_list;
 mod label;
 pub mod overlay_list;
 pub mod set_list;
+pub mod trackers;
 
 const DEFAULT_MAX_SIZE: f32 = 2048.0;
 

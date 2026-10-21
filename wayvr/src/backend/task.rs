@@ -111,6 +111,8 @@ pub enum OverlayTask {
     SwitchSet(Option<usize>),
     ToggleOverlay(OverlaySelector, ToggleMode),
     ResetOverlay(OverlaySelector),
+    /// Bring visible screens and the keyboard in front of the user's gaze
+    ResetLayout,
     ResizeOverlay(OverlaySelector, [u32; 2]),
     DeleteActiveSet,
     ToggleEditMode,

@@ -1,0 +1,40 @@
+<layout version="2">
+  <macro name="decorative_rect"
+    padding="8" color="background"
+    border="2" border_color="outline" round="8" />
+
+  <macro name="button_style" padding="8" border="2" round="8" align_items="center" justify_content="center" />
+
+  <template name="TrackerButton">
+    <Button macro="button_style" _press="::TrackerCmd ${cmd}" width="100%">
+      <label text="${text}" size="18" weight="bold" />
+    </Button>
+  </template>
+
+  <elements>
+    <!-- Slides out of the watch (see overlays/trackers.rs). Talks to the fbt-calibrator program -->
+    <div padding="32" interactable="0" flex_direction="column" gap="8">
+      <div flex_direction="column" gap="8" min_width="300">
+        <rectangle macro="decorative_rect" flex_direction="column" gap="6">
+          <label text="Калібрування трекерів" size="20" weight="bold" color="on_background" />
+          <label text="Програма калібрування не запущена" _source="trackers" _display="status" size="16" color="on_background_variant" />
+          <label text="" _source="trackers" _display="override" size="16" weight="bold" color="tertiary" />
+        </rectangle>
+
+        <rectangle macro="decorative_rect" flex_direction="column" gap="6">
+          <TrackerButton cmd="override" text="VRChat: у будь-якій позі (30 с)" />
+          <TrackerButton cmd="toggle tpose" text="Т-поза" />
+          <label text="" _source="trackers" _display="tpose" size="14" color="on_background_variant" align="center" />
+          <TrackerButton cmd="toggle dots" text="Показ трекерів" />
+          <label text="" _source="trackers" _display="dots" size="14" color="on_background_variant" align="center" />
+          <div flex_direction="row" gap="6">
+            <TrackerButton cmd="stance -2" text="◀ Ближче" />
+            <TrackerButton cmd="stance +2" text="Ширше ▶" />
+          </div>
+          <label text="" _source="trackers" _display="stance" size="14" color="on_background_variant" align="center" />
+          <TrackerButton cmd="reset" text="Скинути калібрування" />
+        </rectangle>
+      </div>
+    </div>
+  </elements>
+</layout>

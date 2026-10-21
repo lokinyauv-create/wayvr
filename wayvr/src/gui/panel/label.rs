@@ -205,6 +205,23 @@ pub(super) fn setup_custom_label<S: 'static>(
                 Ok(EventResult::Pass)
             })
         }
+        "trackers" => {
+            let display = match attribs.get_value("_display").unwrap_or("status") {
+                "status" => TrackersDisplay::Status,
+                "override" => TrackersDisplay::Override,
+                "stance" => TrackersDisplay::Stance,
+                "tpose" => TrackersDisplay::TPose,
+                "dots" => TrackersDisplay::Dots,
+                unk => {
+                    log_invalid_attrib(parser_state, TAG, "_display", unk);
+                    return;
+                }
+            };
+            Box::new(move |common, data, _app, _| {
+                trackers_on_tick(&display, common, data);
+                Ok(EventResult::Pass)
+            })
+        }
         unk => {
             log_invalid_attrib(parser_state, TAG, "_source", unk);
             return;
@@ -390,5 +407,53 @@ fn fps_on_tick(
         }
     };
     label.set_color(common, color, true);
+    label.set_text(common, Translation::from_raw_text(&text));
+}
+
+enum TrackersDisplay {
+    Status,
+    Override,
+    Stance,
+    TPose,
+    Dots,
+}
+
+fn trackers_on_tick(
+    display: &TrackersDisplay,
+    common: &mut event::CallbackDataCommon,
+    data: &mut event::CallbackData,
+) {
+    let on_off = |v: bool| if v { "увімк." } else { "вимк." };
+    let text = match super::trackers::status() {
+        None => match display {
+            TrackersDisplay::Status => "Програма калібрування не запущена".to_string(),
+            _ => String::new(),
+        },
+        Some(s) => match display {
+            TrackersDisplay::Status => {
+                let mut lines = Vec::new();
+                if !s.vr {
+                    lines.push("Чекаю на SteamVR…".to_string());
+                } else if !s.driver {
+                    lines.push("Драйвер не працює — перезапусти SteamVR".to_string());
+                }
+                if s.trackers.is_empty() {
+                    lines.push("Ще не відкалібровано. Т-поза: ноги разом, руки в сторони".to_string());
+                }
+                for t in &s.trackers {
+                    lines.push(format!("{} {}", if t.ok { "●" } else { "○" }, t.role));
+                }
+                lines.join("\n")
+            }
+            TrackersDisplay::Override => match s.override_left {
+                Some(left) => format!("Трекери в Т-позі ще {left} с — калібруйся у VRChat"),
+                None => String::new(),
+            },
+            TrackersDisplay::Stance => format!("{} см між ногами", s.stance_cm),
+            TrackersDisplay::TPose => format!("Т-поза: {}", on_off(s.tpose)),
+            TrackersDisplay::Dots => format!("Трекери у VR: {}", on_off(s.dots)),
+        },
+    };
+    let label = data.obj.get_as_mut::<WidgetLabel>().unwrap();
     label.set_text(common, Translation::from_raw_text(&text));
 }

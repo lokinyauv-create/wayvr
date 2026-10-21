@@ -383,6 +383,30 @@ pub(super) fn setup_custom_button<S: 'static>(
                         Ok(EventResult::Consumed)
                     })
                 }
+                "::TrackerCmd" => {
+                    let arg: Arc<str> = args.collect::<Vec<_>>().join(" ").into();
+                    if arg.is_empty() {
+                        log_cmd_missing_arg(parser_state, TAG, name, command);
+                        return;
+                    }
+
+                    Box::new(move |_common, data, app, _| {
+                        if !test_button(data) || !test_duration(&button, app) {
+                            return Ok(EventResult::Pass);
+                        }
+
+                        super::trackers::send(&arg);
+                        Ok(EventResult::Consumed)
+                    })
+                }
+                "::ResetLayout" => Box::new(move |_common, data, app, _| {
+                    if !test_button(data) || !test_duration(&button, app) {
+                        return Ok(EventResult::Pass);
+                    }
+
+                    app.tasks.enqueue(TaskType::Overlay(OverlayTask::ResetLayout));
+                    Ok(EventResult::Consumed)
+                }),
                 "::OverlayDrop" => {
                     let arg: Arc<str> = args.collect::<Vec<_>>().join(" ").into();
                     if arg.is_empty() {

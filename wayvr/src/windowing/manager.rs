@@ -1,17 +1,19 @@
 use std::{
+    sync::Arc,
     collections::{HashMap, VecDeque},
     rc::Rc,
     sync::atomic::Ordering,
 };
 
 use anyhow::Context;
-use glam::{Affine3A, Vec3, Vec3A};
+use glam::{Affine3A, Quat, Vec3, Vec3A};
 use slotmap::{Key, SecondaryMap, SlotMap};
 use wgui::{i18n::Translation, log::LogErr};
 use wlx_common::{
     astr_containers::{AStrMap, AStrMapExt},
     config::SerializedWindowSet,
     overlays::{BackendAttrib, ToastTopic},
+    windowing::Positioning,
 };
 
 use crate::{
@@ -23,10 +25,11 @@ use crate::{
         custom::create_custom,
         dashboard::{DASH_NAME, create_dash_frontend},
         edit::EditWrapperManager,
-        keyboard::create_keyboard,
+        keyboard::{KEYBOARD_NAME, create_keyboard},
         passthrough::{PASSTHRU_PREFIX, new_passthru},
         screen::create_screens,
         toast::Toast,
+        trackers::create_trackers,
         watch::{WATCH_NAME, create_watch},
     },
     state::AppState,
@@ -35,6 +38,7 @@ use crate::{
         backend::{OverlayEventData, OverlayMeta},
         set::OverlayWindowSet,
         snap_upright,
+        magnet::{self, ScreenMagnet},
         window::{
             OverlayCategory, OverlayWindowData, save_transform, scalar_scale,
             spawn_transform_from_parent,
@@ -44,6 +48,13 @@ use crate::{
 
 pub const MAX_OVERLAY_SETS: usize = 6;
 pub const GLOBAL_SET: &str = "global";
+
+/// Layout reset: distance in front of the gaze, width of a screen, angle between neighbouring screens
+const RESET_DISTANCE: f32 = 2.0;
+const RESET_SCREEN_WIDTH: f32 = 3.0;
+const RESET_SCREEN_STEP_DEG: f32 = 45.0;
+/// Keyboard when there are no screens: below and in front of the eyes
+const RESET_KEYBOARD_ALONE: Vec3 = Vec3::new(0.0, -0.45, -0.8);
 
 pub struct OverlayWindowManager<T> {
     wrappers: EditWrapperManager,
@@ -132,6 +143,9 @@ where
         let watch = OverlayWindowData::from_config(create_watch(app)?);
         me.watch_id = me.add(watch, app);
 
+        let trackers = OverlayWindowData::from_config(create_trackers(app)?);
+        me.add(trackers, app);
+
         let dash_frontend = OverlayWindowData::from_config(create_dash_frontend(app)?);
         me.add(dash_frontend, app);
 
@@ -210,6 +224,7 @@ where
                     }
                 }
             }
+            OverlayTask::ResetLayout => self.reset_layout(app)?,
             OverlayTask::ResizeOverlay(sel, size) => {
                 let Some(id) = self.id_by_selector(&sel) else {
                     log::warn!("Overlay not found for task: {sel:?}");
@@ -1152,6 +1167,157 @@ impl<T> OverlayWindowManager<T> {
     }
 
     #[allow(clippy::unnecessary_wraps)]
+    /// Refreshes the list of screens the keyboard can cling to and moves a docked keyboard with its screen.
+    pub fn update_magnets(&mut self, app: &mut AppState) {
+        app.screen_magnets.clear();
+        for (_, o) in &mut self.overlays {
+            if o.config.category != OverlayCategory::Screen {
+                continue;
+            }
+            let Some(transform) = o.config.active_state.as_ref().map(|s| s.transform) else {
+                continue;
+            };
+            let width = scalar_scale(&transform);
+            let aspect = o
+                .config
+                .backend
+                .frame_meta()
+                .map_or(9.0 / 16.0, |m| m.extent[1] as f32 / m.extent[0].max(1) as f32);
+            app.screen_magnets.push(ScreenMagnet {
+                name: o.config.name.clone(),
+                frame: magnet::unscaled(&transform),
+                width,
+                height: width * aspect,
+            });
+        }
+
+        let Some(target) = app
+            .keyboard_dock
+            .as_ref()
+            .and_then(|dock| magnet::follow(&app.screen_magnets, dock))
+        else {
+            return;
+        };
+        let Some(kbd_id) = self.lookup(KEYBOARD_NAME) else {
+            return;
+        };
+        let o = &mut self.overlays[kbd_id];
+        if o.config.pause_movement {
+            return; // being dragged right now
+        }
+        if let Some(state) = o.config.active_state.as_mut()
+            && state.transform != target
+        {
+            state.positioning = Positioning::Floating;
+            state.transform = target;
+            save_transform(state, app);
+            o.config.dirty = true;
+        }
+    }
+
+    /// Puts visible screens (in an arc) and the keyboard (under the middle screen)
+    /// in front of where the user is looking, upright and facing them.
+    fn reset_layout(&mut self, app: &mut AppState) -> anyhow::Result<()> {
+        let hmd = app.input_state.hmd;
+        let flat = |v: Vec3A| Vec3A::new(v.x, 0.0, v.z);
+        let mut back = flat(hmd.z_axis);
+        if back.length_squared() < 1e-4 {
+            // looking straight down: the top of the head points forward
+            back = -flat(hmd.y_axis);
+        }
+        let back = back.normalize_or(Vec3A::Z);
+        let right = Vec3A::Y.cross(back).normalize();
+        let gaze = Affine3A::from_cols(right, Vec3A::Y, back, hmd.translation);
+
+        let mut screens: Vec<(OverlayID, Arc<str>)> = self
+            .overlays
+            .iter()
+            .filter(|(_, o)| o.config.category == OverlayCategory::Screen && o.config.is_active())
+            .map(|(id, o)| (id, o.config.name.clone()))
+            .collect();
+        screens.sort_by(|a, b| a.1.cmp(&b.1));
+
+        let count = screens.len();
+        let mut middle: Option<(Arc<str>, Affine3A, f32)> = None; // name, local transform and height of the middle screen
+
+        for (i, (id, name)) in screens.iter().enumerate() {
+            let Some(o) = self.overlays.get_mut(*id) else {
+                continue;
+            };
+            let aspect = o
+                .config
+                .backend
+                .frame_meta()
+                .map_or(9.0 / 16.0, |m| m.extent[1] as f32 / m.extent[0].max(1) as f32);
+            let angle = (i as f32 - (count as f32 - 1.0) / 2.0) * RESET_SCREEN_STEP_DEG.to_radians();
+            let facing = Quat::from_rotation_y(-angle);
+            let pos = facing * Vec3::new(0.0, 0.0, -RESET_DISTANCE);
+            let (_, base_rot, _) = o.config.default_state.transform.to_scale_rotation_translation();
+            let local = Affine3A::from_scale_rotation_translation(
+                Vec3::splat(RESET_SCREEN_WIDTH),
+                facing * base_rot,
+                pos,
+            );
+            if let Some(state) = o.config.active_state.as_mut() {
+                state.positioning = Positioning::Floating;
+                state.transform = gaze * local;
+                save_transform(state, app);
+            }
+            o.config.dirty = true;
+            if i == count / 2 {
+                middle = Some((name.clone(), local, RESET_SCREEN_WIDTH * aspect));
+            }
+        }
+
+        if let Some(kbd_id) = self.lookup(KEYBOARD_NAME) {
+            let was_active = self.overlays[kbd_id].config.is_active();
+            let o = &mut self.overlays[kbd_id];
+            if !was_active {
+                o.config.activate(app, false);
+            }
+            let kbd_width = scalar_scale(&o.config.default_state.transform);
+            let kbd_height = o
+                .config
+                .backend
+                .frame_meta()
+                .map_or(kbd_width * 0.4, |m| kbd_width * m.extent[1] as f32 / m.extent[0].max(1) as f32);
+            let tilt = Quat::from_rotation_x(magnet::TILT_DEG.to_radians());
+            let local = match &middle {
+                Some((name, screen_local, height)) => {
+                    // under the middle screen, in its plane
+                    let docked = Affine3A::from_scale_rotation_translation(
+                        Vec3::splat(kbd_width),
+                        tilt,
+                        Vec3::new(0.0, magnet::dock_y(*height, kbd_height), 0.02),
+                    );
+                    app.keyboard_dock = Some(magnet::KeyboardDock {
+                        screen: name.clone(),
+                        local: docked,
+                    });
+                    magnet::unscaled(screen_local) * docked
+                }
+                None => {
+                    app.keyboard_dock = None;
+                    Affine3A::from_scale_rotation_translation(
+                        Vec3::splat(kbd_width),
+                        tilt,
+                        RESET_KEYBOARD_ALONE,
+                    )
+                }
+            };
+            if let Some(state) = o.config.active_state.as_mut() {
+                state.positioning = Positioning::Floating;
+                state.transform = gaze * local;
+                save_transform(state, app);
+            }
+            o.config.dirty = true;
+            if !was_active {
+                self.visible_overlays_changed(app)?;
+            }
+        }
+        Ok(())
+    }
+
     fn visible_overlays_changed(&mut self, app: &mut AppState) -> anyhow::Result<()> {
         let mut vis = Vec::with_capacity(self.overlays.len());
 
