@@ -423,7 +423,7 @@ fn trackers_on_tick(
     common: &mut event::CallbackDataCommon,
     data: &mut event::CallbackData,
 ) {
-    let on_off = |v: bool| if v { "увімк." } else { "вимк." };
+    let on_off = |v: bool| if v { "ТАК, працює" } else { "НІ, вимкнено" };
     let text = match super::trackers::status() {
         None => match display {
             TrackersDisplay::Status => "Програма калібрування не запущена".to_string(),
@@ -450,8 +450,8 @@ fn trackers_on_tick(
                 None => String::new(),
             },
             TrackersDisplay::Stance => format!("{} см між ногами", s.stance_cm),
-            TrackersDisplay::TPose => format!("Т-поза: {}", on_off(s.tpose)),
-            TrackersDisplay::Dots => format!("Трекери у VR: {}", on_off(s.dots)),
+            TrackersDisplay::TPose => format!("Т-поза — {}", on_off(s.tpose)),
+            TrackersDisplay::Dots => format!("Кульки у VR — {}", on_off(s.dots)),
         },
     };
     let label = data.obj.get_as_mut::<WidgetLabel>().unwrap();

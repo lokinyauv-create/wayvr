@@ -23,9 +23,9 @@
 
         <rectangle macro="decorative_rect" flex_direction="column" gap="6">
           <TrackerButton cmd="override" text="VRChat: у будь-якій позі (30 с)" />
-          <TrackerButton cmd="toggle tpose" text="Т-поза" />
+          <TrackerButton cmd="toggle tpose" text="Перемкнути Т-позу" />
           <label text="" _source="trackers" _display="tpose" size="14" color="on_background_variant" align="center" />
-          <TrackerButton cmd="toggle dots" text="Показ трекерів" />
+          <TrackerButton cmd="toggle dots" text="Перемкнути кульки" />
           <label text="" _source="trackers" _display="dots" size="14" color="on_background_variant" align="center" />
           <div flex_direction="row" gap="6">
             <TrackerButton cmd="stance -2" text="◀ Ближче" />
