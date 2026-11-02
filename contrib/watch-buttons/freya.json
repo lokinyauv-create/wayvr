@@ -1,0 +1,8 @@
+{
+  "name": "Фрея",
+  "tooltip": "Покликати Фрею (Claude): натисни і кажи, що треба",
+  "icon": "freya.svg",
+  "press": "./freya.sh press",
+  "active": "./freya.sh busy",
+  "interval_ms": 500
+}

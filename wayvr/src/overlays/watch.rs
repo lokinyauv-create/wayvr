@@ -2,7 +2,7 @@ use crate::{
     gui::{
         panel::{
             GuiPanel, NewGuiPanelParams, apply_custom_command, device_list::DeviceList,
-            overlay_list::OverlayList,
+            overlay_list::OverlayList, plugins,
         },
         timer::GuiTimer,
     },
@@ -14,10 +14,11 @@ use std::time::Duration;
 use wgui::{
     assets::AssetPathRef,
     components::button::ComponentButton,
-    parser::{Fetchable, ParseDocumentParams},
+    parser::{Fetchable, ParseDocumentParams, TemplateParams},
 };
 use wlx_common::{
     common::LeftRight,
+    watch_buttons::{WatchButton, shown_buttons},
     windowing::{OverlayWindowState, Positioning},
 };
 
@@ -30,6 +31,116 @@ struct WatchState {
     device_list: DeviceList,
     overlay_list: OverlayList,
     clock_12h: bool,
+    edit_mode: bool,
+    /// the buttons in `buttons_root` right now
+    buttons: Vec<WatchButton>,
+}
+
+/// Built-in watch buttons: element id, action, icon, short name and tooltip
+fn builtin_button(id: &str) -> Option<(&'static str, &'static str, &'static str, &'static str, &'static str)> {
+    Some(match id {
+        "center" => (
+            "btn_reset_layout",
+            "::ResetLayout",
+            "@/watch/center.svg",
+            "Центрувати",
+            "Поставити монітори й клавіатуру перед собою",
+        ),
+        "keyboard" => (
+            "btn_keyboard",
+            "::OverlayToggle kbd",
+            "@/watch/keyboard.svg",
+            "Клавіатура",
+            "Показати або сховати клавіатуру",
+        ),
+        "trackers" => (
+            "btn_ovl_trackers",
+            "::OverlayToggle trackers",
+            "@/watch/track.svg",
+            "Трекери",
+            "Калібрування трекерів",
+        ),
+        "dashboard" => (
+            "btn_dashboard",
+            "::DashToggle",
+            "@/watch/wayvr_dashboard_mono.svg",
+            "Налаштування",
+            "Кольори, кнопки годинника, вигляд",
+        ),
+        "edit" => (
+            "btn_edit_mode",
+            "::EditToggle",
+            "@/watch/edit.svg",
+            "Редагувати",
+            "Режим редагування вікон",
+        ),
+        _ => return None,
+    })
+}
+
+/// Fills `buttons_root` with the buttons the user chose, in their order
+fn build_buttons(
+    panel: &mut GuiPanel<WatchState>,
+    app: &mut AppState,
+    doc_params: &ParseDocumentParams,
+    buttons: Vec<WatchButton>,
+) -> anyhow::Result<()> {
+    let root = panel.parser_state.get_widget_id("buttons_root")?;
+    panel.layout.remove_children(root);
+
+    let plugin_list: Vec<_> = buttons
+        .iter()
+        .filter_map(|b| Some((b.id.clone(), b.plugin.clone()?)))
+        .collect();
+    plugins::set_plugins(&plugin_list);
+
+    for (i, button) in buttons.iter().enumerate() {
+        let mut params = TemplateParams::new();
+        let template = if let Some((elem, press, icon, text, tooltip)) = builtin_button(&button.id) {
+            params.insert("id", elem);
+            params.insert("press", press);
+            params.insert("icon", icon);
+            params.insert("text", text);
+            params.insert("tooltip", tooltip);
+            "Tile"
+        } else if let Some(plugin) = &button.plugin {
+            params.insert_rc("id", format!("btn_plugin_{i}").into());
+            params.insert_rc("press", format!("::PluginPress {}", button.id).into());
+            params.insert("text", &plugin.name);
+            params.insert(
+                "tooltip",
+                plugin.tooltip.as_deref().unwrap_or(&plugin.name),
+            );
+            match plugin.icon_path().filter(|p| p.is_file()) {
+                Some(icon) => {
+                    params.insert_rc("icon", icon.to_string_lossy().into());
+                    "TileFile"
+                }
+                None => "TileText",
+            }
+        } else {
+            continue;
+        };
+        panel
+            .parser_state
+            .instantiate_template(doc_params, template, &mut panel.layout, root, params)?;
+    }
+    panel.state.buttons = buttons;
+
+    // the new buttons must show what is on right now
+    panel.state.overlay_list.refresh(
+        &mut panel.layout,
+        &mut panel.parser_state,
+        doc_params,
+    )?;
+    if let Ok(btn) = panel
+        .parser_state
+        .fetch_component_as::<ComponentButton>("btn_edit_mode")
+    {
+        btn.set_sticky_state(&mut panel.layout.common(), panel.state.edit_mode);
+    }
+    panel.process_custom_elems(app);
+    Ok(())
 }
 
 pub fn create_watch(app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
@@ -47,6 +158,9 @@ pub fn create_watch(app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
         path: AssetPathRef::FileOrBuiltIn(watch_xml),
         extra: panel.doc_extra.take().unwrap_or_default(),
     };
+
+    let buttons = shown_buttons(&app.session.config);
+    build_buttons(&mut panel, app, &doc_params, buttons)?;
 
     panel.on_notify = Some(Box::new({
         let name = WATCH_NAME;
@@ -68,6 +182,7 @@ pub fn create_watch(app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
 
             match event_data {
                 OverlayEventData::EditModeChanged(edit_mode) => {
+                    panel.state.edit_mode = edit_mode;
                     if let Ok(btn_edit_mode) = panel
                         .parser_state
                         .fetch_component_as::<ComponentButton>("btn_edit_mode")
@@ -77,6 +192,12 @@ pub fn create_watch(app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
                 }
                 OverlayEventData::SettingsChanged => {
                     panel.layout.mark_redraw();
+
+                    let buttons = shown_buttons(&app.session.config);
+                    if buttons != panel.state.buttons {
+                        build_buttons(panel, app, &doc_params, buttons)?;
+                        elems_changed = true;
+                    }
 
                     if app.session.config.clock_12h != panel.state.clock_12h {
                         panel.state.clock_12h = app.session.config.clock_12h;

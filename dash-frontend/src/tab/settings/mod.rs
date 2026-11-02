@@ -27,6 +27,7 @@ use crate::{
 
 mod macros;
 mod tab_look_and_feel;
+mod tab_watch_buttons;
 
 #[derive(Clone)]
 pub(crate) enum Task {
@@ -35,8 +36,8 @@ pub(crate) enum Task {
 	UpdateFloat(SettingType, f32),
 }
 
-struct SettingsMountParams<'a> {
-	mp: &'a mut MacroParams<'a>,
+struct SettingsMountParams<'a, 'b> {
+	mp: &'a mut MacroParams<'b>,
 	frontend_tasks: &'a FrontendTasks,
 	id_parent: WidgetID,
 }
@@ -47,6 +48,7 @@ pub struct TabSettings<T> {
 
 	context_menu: ContextMenu,
 	look_and_feel: Option<tab_look_and_feel::State>,
+	watch_buttons: Option<tab_watch_buttons::State>,
 
 	tasks: Tasks<Task>,
 	marker: PhantomData<T>,
@@ -76,6 +78,7 @@ impl<T> TabSettings<T> {
 			id_parent: root,
 			frontend_tasks: &frontend.tasks,
 		})?;
+		let watch_buttons = tab_watch_buttons::State::mount(&mut mp, root)?;
 
 		Ok(Self {
 			tasks,
@@ -83,6 +86,7 @@ impl<T> TabSettings<T> {
 			marker: PhantomData,
 			context_menu: ContextMenu::default(),
 			look_and_feel: Some(look_and_feel),
+			watch_buttons: Some(watch_buttons),
 		})
 	}
 
@@ -95,6 +99,25 @@ impl<T> TabSettings<T> {
 				general_config: frontend.interface.general_config(data),
 				config_change_kind: &mut config_change_kind,
 			})?;
+
+			if let Some(kind) = config_change_kind {
+				frontend.interface.config_changed(data, kind);
+			}
+		}
+
+		if let Some(tab) = &mut self.watch_buttons {
+			let mut config_change_kind = None;
+			let globals = frontend.layout.state.globals.clone();
+
+			tab.update(
+				&mut ViewUpdateParams {
+					layout: &mut frontend.layout,
+					general_config: frontend.interface.general_config(data),
+					config_change_kind: &mut config_change_kind,
+				},
+				&mut self.state,
+				&doc_params(&globals),
+			)?;
 
 			if let Some(kind) = config_change_kind {
 				frontend.interface.config_changed(data, kind);
@@ -171,9 +194,7 @@ pub(crate) enum SettingType {
 	DefaultCurvature,
 	DefaultOpacity,
 	DefaultOverlayScale,
-	DefaultPositioning,
 	HideGrabHelp,
-	HideUsername,
 	Language,
 	OpaqueBackground,
 	UiAnimationSpeed,
@@ -186,7 +207,6 @@ impl SettingType {
 		match self {
 			Self::Clock12h => &mut config.clock_12h,
 			Self::HideGrabHelp => &mut config.hide_grab_help,
-			Self::HideUsername => &mut config.hide_username,
 			Self::OpaqueBackground => &mut config.opaque_background,
 			_ => panic!("Requested bool for non-bool SettingType"),
 		}
@@ -206,10 +226,6 @@ impl SettingType {
 
 	pub fn set_enum(self, config: &mut GeneralConfig, value: &str) {
 		match self {
-			Self::DefaultPositioning => {
-				config.default_positioning =
-					wlx_common::config::DefaultPositioning::from_str(value).expect("Invalid enum value!")
-			}
 			Self::Language => {
 				config.language = Some(wlx_common::locale::Language::from_str(value).expect("Invalid enum value!"))
 			}
@@ -219,7 +235,6 @@ impl SettingType {
 
 	fn get_enum_title(self, config: &mut GeneralConfig) -> Translation {
 		match self {
-			Self::DefaultPositioning => Self::get_enum_title_inner(config.default_positioning),
 			Self::Language => match &config.language {
 				Some(lang) => Self::get_enum_title_inner(*lang),
 				None => Translation::from_translation_key("APP_SETTINGS.OPTION.AUTO"),
@@ -254,9 +269,7 @@ impl SettingType {
 			Self::DefaultCurvature => Ok("APP_SETTINGS.DEFAULT_CURVATURE"),
 			Self::DefaultOpacity => Ok("APP_SETTINGS.DEFAULT_OPACITY"),
 			Self::DefaultOverlayScale => Ok("APP_SETTINGS.DEFAULT_OVERLAY_SCALE"),
-			Self::DefaultPositioning => Ok("APP_SETTINGS.DEFAULT_POSITIONING"),
 			Self::HideGrabHelp => Ok("APP_SETTINGS.HIDE_GRAB_HELP"),
-			Self::HideUsername => Ok("APP_SETTINGS.HIDE_USERNAME"),
 			Self::Language => Ok("APP_SETTINGS.LANGUAGE"),
 			Self::OpaqueBackground => Ok("APP_SETTINGS.OPAQUE_BACKGROUND"),
 			Self::UiAnimationSpeed => Ok("APP_SETTINGS.ANIMATION_SPEED"),
@@ -271,7 +284,6 @@ impl SettingType {
 			Self::DefaultCurvature => Some("APP_SETTINGS.OVERLAY_DEFAULTS_HELP"),
 			Self::DefaultOpacity => Some("APP_SETTINGS.OVERLAY_DEFAULTS_HELP"),
 			Self::DefaultOverlayScale => Some("APP_SETTINGS.DEFAULT_OVERLAY_SCALE_HELP"),
-			Self::DefaultPositioning => Some("APP_SETTINGS.OVERLAY_DEFAULTS_HELP"),
 			_ => None,
 		}
 	}

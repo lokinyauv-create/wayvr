@@ -45,6 +45,7 @@ pub mod button;
 pub mod device_list;
 mod label;
 pub mod overlay_list;
+pub mod plugins;
 pub mod set_list;
 pub mod trackers;
 

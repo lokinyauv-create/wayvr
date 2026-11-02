@@ -210,8 +210,6 @@ pub(super) fn setup_custom_label<S: 'static>(
                 "status" => TrackersDisplay::Status,
                 "override" => TrackersDisplay::Override,
                 "stance" => TrackersDisplay::Stance,
-                "tpose" => TrackersDisplay::TPose,
-                "dots" => TrackersDisplay::Dots,
                 unk => {
                     log_invalid_attrib(parser_state, TAG, "_display", unk);
                     return;
@@ -414,8 +412,6 @@ enum TrackersDisplay {
     Status,
     Override,
     Stance,
-    TPose,
-    Dots,
 }
 
 fn trackers_on_tick(
@@ -423,7 +419,6 @@ fn trackers_on_tick(
     common: &mut event::CallbackDataCommon,
     data: &mut event::CallbackData,
 ) {
-    let on_off = |v: bool| if v { "ТАК, працює" } else { "НІ, вимкнено" };
     let text = match super::trackers::status() {
         None => match display {
             TrackersDisplay::Status => "Програма калібрування не запущена".to_string(),
@@ -450,8 +445,6 @@ fn trackers_on_tick(
                 None => String::new(),
             },
             TrackersDisplay::Stance => format!("{} см між ногами", s.stance_cm),
-            TrackersDisplay::TPose => format!("Т-поза — {}", on_off(s.tpose)),
-            TrackersDisplay::Dots => format!("Кульки у VR — {}", on_off(s.dots)),
         },
     };
     let label = data.obj.get_as_mut::<WidgetLabel>().unwrap();

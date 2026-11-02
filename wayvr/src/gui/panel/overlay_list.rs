@@ -1,4 +1,8 @@
-use crate::windowing::{OverlayID, backend::OverlayEventData, window::OverlayCategory};
+use crate::windowing::{
+    OverlayID,
+    backend::{OverlayEventData, OverlayMeta},
+    window::OverlayCategory,
+};
 use slotmap::{Key, SecondaryMap};
 use std::rc::Rc;
 use wgui::{
@@ -12,11 +16,40 @@ use wgui::{
 /// Populates `id="panels_root"` with `<Screen>` templates; mirrors, panels and apps are left out
 /// Clears `id="apps_root"` (optional)
 /// Uses the following parameters: `name`, `display`
+/// Lights up `btn_dashboard`, `btn_keyboard` and `btn_ovl_<name>` while that overlay is shown
 pub struct OverlayList {
     overlay_buttons: SecondaryMap<OverlayID, Rc<ComponentButton>>,
+    last_overlays: Option<Rc<[OverlayMeta]>>,
+    last_visible: Option<Rc<[OverlayID]>>,
 }
 
 impl OverlayList {
+    /// Fills everything in again from the last known state, after the buttons were rebuilt
+    pub fn refresh(
+        &mut self,
+        layout: &mut Layout,
+        parser_state: &mut ParserState,
+        doc_params: &ParseDocumentParams,
+    ) -> anyhow::Result<()> {
+        if let Some(overlays) = self.last_overlays.clone() {
+            self.on_notify(
+                layout,
+                parser_state,
+                &OverlayEventData::OverlaysChanged(overlays),
+                doc_params,
+            )?;
+        }
+        if let Some(visible) = self.last_visible.clone() {
+            self.on_notify(
+                layout,
+                parser_state,
+                &OverlayEventData::VisibleOverlaysChanged(visible),
+                doc_params,
+            )?;
+        }
+        Ok(())
+    }
+
     pub fn on_notify(
         &mut self,
         layout: &mut Layout,
@@ -27,6 +60,7 @@ impl OverlayList {
         let mut elements_changed = false;
         match event_data {
             OverlayEventData::OverlaysChanged(metas) => {
+                self.last_overlays = Some(metas.clone());
                 let panels_root = parser_state
                     .get_widget_id("panels_root")
                     .unwrap_or_default();
@@ -52,15 +86,15 @@ impl OverlayList {
                             );
                             ("Screen", panels_root)
                         }
-                        OverlayCategory::Dashboard | OverlayCategory::Keyboard => {
-                            let key = if matches!(meta.category, OverlayCategory::Dashboard) {
-                                "btn_dashboard"
-                            } else {
-                                "btn_keyboard"
+                        _ => {
+                            let key = match meta.category {
+                                OverlayCategory::Dashboard => "btn_dashboard".to_string(),
+                                OverlayCategory::Keyboard => "btn_keyboard".to_string(),
+                                _ => format!("btn_ovl_{}", meta.name),
                             };
 
                             let Ok(overlay_button) =
-                                parser_state.fetch_component_as::<ComponentButton>(key)
+                                parser_state.fetch_component_as::<ComponentButton>(&key)
                             else {
                                 continue;
                             };
@@ -71,7 +105,6 @@ impl OverlayList {
                             self.overlay_buttons.insert(meta.id, overlay_button);
                             continue;
                         }
-                        _ => continue,
                     };
 
                     if root.is_null() {
@@ -92,6 +125,7 @@ impl OverlayList {
                 elements_changed = true;
             }
             OverlayEventData::VisibleOverlaysChanged(overlays) => {
+                self.last_visible = Some(overlays.clone());
                 let mut overlay_buttons = self.overlay_buttons.clone();
 
                 for visible in overlays.as_ref() {

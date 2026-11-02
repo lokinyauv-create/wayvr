@@ -17,6 +17,7 @@ pub mod openxr_controller_profiles;
 pub mod overlays;
 pub mod palette;
 pub mod timestep;
+pub mod watch_buttons;
 pub mod windowing;
 
 #[derive(Clone, Copy, EnumIs, EnumString, PartialEq, Eq)]

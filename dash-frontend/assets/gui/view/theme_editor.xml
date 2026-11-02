@@ -1,0 +1,61 @@
+<layout version="2">
+  <!-- which color is being changed: Основний, Другий, ... -->
+  <template name="SlotButton">
+    <Button id="slot_${idx}" height="40" padding="6" gap="8" align_items="center">
+      <rectangle id="slot_swatch_${idx}" width="24" height="24" round="100%" border="2" border_color="outline" />
+      <label text="${text}" weight="bold" size="15" />
+    </Button>
+  </template>
+
+  <!-- a ready color to click instead of moving the sliders -->
+  <template name="Swatch">
+    <Button id="swatch_${idx}" width="40" height="40" round="100%" border="2"
+      color="${color}" hover_color="${color}" border_color="outline" hover_border_color="highlight" />
+  </template>
+
+  <template name="ColorSlider">
+    <div flex_direction="row" align_items="center" gap="8">
+      <Slider id="${id}" width="380" height="24" min_value="0" max_value="${max}" step="1" value="0" />
+      <label text="${text}" weight="bold" size="15" />
+    </div>
+  </template>
+
+  <elements>
+    <div flex_direction="column" gap="12" padding="8" align_items="center" width="100%" overflow_y="scroll">
+      <!-- Preview: how menus will look -->
+      <rectangle id="pv_bg" round="12" padding="16" gap="10" flex_direction="column" border="2" width="460">
+        <label id="pv_title" text="Так виглядатиме меню" size="22" weight="bold" parent_color="ignore" />
+        <label id="pv_sub" text="Другорядний текст і рамки" size="15" parent_color="ignore" />
+        <div flex_direction="row" gap="10">
+          <rectangle id="pv_primary" round="8" padding="8" align_items="center" justify_content="center">
+            <label id="pv_primary_t" text="Основний" size="15" weight="bold" parent_color="ignore" />
+          </rectangle>
+          <rectangle id="pv_secondary" round="8" padding="8" align_items="center" justify_content="center">
+            <label id="pv_secondary_t" text="Другий" size="15" weight="bold" parent_color="ignore" />
+          </rectangle>
+          <rectangle id="pv_tertiary" round="8" padding="8" align_items="center" justify_content="center">
+            <label id="pv_tertiary_t" text="Третій" size="15" weight="bold" parent_color="ignore" />
+          </rectangle>
+        </div>
+      </rectangle>
+
+      <label text="1. Вибери, який колір міняти" size="15" weight="bold" color="on_background_variant" />
+      <div id="slots" flex_direction="row" gap="6" flex_wrap="wrap" justify_content="center" />
+
+      <label text="2. Натисни готовий колір або змішай повзунками" size="15" weight="bold" color="on_background_variant" />
+      <div id="swatches" flex_direction="row" gap="6" flex_wrap="wrap" justify_content="center" max_width="560" />
+      <div id="sliders" flex_direction="column" gap="8" />
+
+      <label text="3. Збережи" size="15" weight="bold" color="on_background_variant" />
+      <div flex_direction="row" gap="8">
+        <Button id="btn_save" height="40" padding="8">
+          <label id="btn_save_t" text="Зберегти й увімкнути" weight="bold" size="16" />
+        </Button>
+        <Button id="btn_save_new" height="40" padding="8">
+          <label text="Зберегти як нову тему" weight="bold" size="16" />
+        </Button>
+      </div>
+      <label id="status" text="" size="14" color="on_background_variant" />
+    </div>
+  </elements>
+</layout>

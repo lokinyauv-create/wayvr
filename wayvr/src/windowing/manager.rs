@@ -13,7 +13,7 @@ use wlx_common::{
     astr_containers::{AStrMap, AStrMapExt},
     config::SerializedWindowSet,
     overlays::{BackendAttrib, ToastTopic},
-    windowing::Positioning,
+    windowing::{OverlayWindowState, Positioning},
 };
 
 use crate::{
@@ -1215,8 +1215,10 @@ impl<T> OverlayWindowManager<T> {
         }
     }
 
-    /// Puts visible screens (in an arc) and the keyboard (under the middle screen)
+    /// Puts the screens (in an arc) and the keyboard (under the middle screen)
     /// in front of where the user is looking, upright and facing them.
+    /// Hidden screens and a hidden keyboard are moved too but stay hidden:
+    /// they show up at the new place when they are turned on.
     fn reset_layout(&mut self, app: &mut AppState) -> anyhow::Result<()> {
         let hmd = app.input_state.hmd;
         let flat = |v: Vec3A| Vec3A::new(v.x, 0.0, v.z);
@@ -1229,18 +1231,40 @@ impl<T> OverlayWindowManager<T> {
         let right = Vec3A::Y.cross(back).normalize();
         let gaze = Affine3A::from_cols(right, Vec3A::Y, back, hmd.translation);
 
-        let mut screens: Vec<(OverlayID, Arc<str>)> = self
-            .overlays
+        let mut shown: Vec<(OverlayID, Arc<str>)> = Vec::new();
+        let mut hidden: Vec<(OverlayID, Arc<str>)> = Vec::new();
+        for (id, o) in &self.overlays {
+            if o.config.category != OverlayCategory::Screen {
+                continue;
+            }
+            let entry = (id, o.config.name.clone());
+            if o.config.is_active() {
+                shown.push(entry);
+            } else {
+                hidden.push(entry);
+            }
+        }
+        shown.sort_by(|a, b| a.1.cmp(&b.1));
+        hidden.sort_by(|a, b| a.1.cmp(&b.1));
+        if shown.is_empty() {
+            // nothing on: arrange the hidden ones as if they were all on
+            std::mem::swap(&mut shown, &mut hidden);
+        }
+
+        // visible screens are centred; hidden ones continue the arc, right then left
+        let half = (shown.len() as f32 - 1.0) / 2.0;
+        let mut slots: Vec<(OverlayID, Arc<str>, f32)> = shown
             .iter()
-            .filter(|(_, o)| o.config.category == OverlayCategory::Screen && o.config.is_active())
-            .map(|(id, o)| (id, o.config.name.clone()))
+            .enumerate()
+            .map(|(i, (id, name))| (*id, name.clone(), i as f32 - half))
             .collect();
-        screens.sort_by(|a, b| a.1.cmp(&b.1));
+        for (j, (id, name)) in hidden.iter().enumerate() {
+            let step = half + 1.0 + (j / 2) as f32;
+            slots.push((*id, name.clone(), if j % 2 == 0 { step } else { -step }));
+        }
 
-        let count = screens.len();
         let mut middle: Option<(Arc<str>, Affine3A, f32)> = None; // name, local transform and height of the middle screen
-
-        for (i, (id, name)) in screens.iter().enumerate() {
+        for (i, (id, name, slot)) in slots.iter().enumerate() {
             let Some(o) = self.overlays.get_mut(*id) else {
                 continue;
             };
@@ -1249,7 +1273,7 @@ impl<T> OverlayWindowManager<T> {
                 .backend
                 .frame_meta()
                 .map_or(9.0 / 16.0, |m| m.extent[1] as f32 / m.extent[0].max(1) as f32);
-            let angle = (i as f32 - (count as f32 - 1.0) / 2.0) * RESET_SCREEN_STEP_DEG.to_radians();
+            let angle = slot * RESET_SCREEN_STEP_DEG.to_radians();
             let facing = Quat::from_rotation_y(-angle);
             let pos = facing * Vec3::new(0.0, 0.0, -RESET_DISTANCE);
             let (_, base_rot, _) = o.config.default_state.transform.to_scale_rotation_translation();
@@ -1258,23 +1282,14 @@ impl<T> OverlayWindowManager<T> {
                 facing * base_rot,
                 pos,
             );
-            if let Some(state) = o.config.active_state.as_mut() {
-                state.positioning = Positioning::Floating;
-                state.transform = gaze * local;
-                save_transform(state, app);
-            }
-            o.config.dirty = true;
-            if i == count / 2 {
+            self.place_overlay(app, *id, gaze * local);
+            if i == shown.len() / 2 {
                 middle = Some((name.clone(), local, RESET_SCREEN_WIDTH * aspect));
             }
         }
 
         if let Some(kbd_id) = self.lookup(KEYBOARD_NAME) {
-            let was_active = self.overlays[kbd_id].config.is_active();
             let o = &mut self.overlays[kbd_id];
-            if !was_active {
-                o.config.activate(app, false);
-            }
             let kbd_width = scalar_scale(&o.config.default_state.transform);
             let kbd_height = o
                 .config
@@ -1305,17 +1320,37 @@ impl<T> OverlayWindowManager<T> {
                     )
                 }
             };
-            if let Some(state) = o.config.active_state.as_mut() {
-                state.positioning = Positioning::Floating;
-                state.transform = gaze * local;
-                save_transform(state, app);
-            }
-            o.config.dirty = true;
-            if !was_active {
-                self.visible_overlays_changed(app)?;
-            }
+            self.place_overlay(app, kbd_id, gaze * local);
         }
         Ok(())
+    }
+
+    /// Moves an overlay to `transform` (floating in the world). A hidden overlay is not shown:
+    /// its stored state is updated, so it appears there when it is turned on.
+    fn place_overlay(&mut self, app: &mut AppState, id: OverlayID, transform: Affine3A) {
+        let set_place = |state: &mut OverlayWindowState, app: &mut AppState| {
+            state.positioning = Positioning::Floating;
+            state.transform = transform;
+            save_transform(state, app);
+        };
+
+        let o = &mut self.overlays[id];
+        if let Some(state) = o.config.active_state.as_mut() {
+            set_place(state, app);
+            o.config.dirty = true;
+            return;
+        }
+
+        let name = o.config.name.clone();
+        let default_state = o.config.default_state.clone();
+        let parent_set = if o.config.global {
+            &mut self.global_set
+        } else {
+            &mut self.sets[self.restore_set]
+        };
+        let mut state = parent_set.hidden_overlays.arc_rm(&name).unwrap_or(default_state);
+        set_place(&mut state, app);
+        parent_set.hidden_overlays.arc_set(name, state);
     }
 
     fn visible_overlays_changed(&mut self, app: &mut AppState) -> anyhow::Result<()> {

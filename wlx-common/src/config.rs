@@ -358,8 +358,13 @@ pub struct GeneralConfig {
 	#[serde(default)]
 	pub last_set: u32,
 
+	/// watch buttons in the user's order (see `watch_buttons`); missing ones go after these
 	#[serde(default)]
-	pub hide_username: bool,
+	pub watch_buttons_order: Vec<Arc<str>>,
+
+	/// watch buttons the user switched off
+	#[serde(default)]
+	pub watch_buttons_hidden: Vec<Arc<str>>,
 
 	#[serde(default)]
 	pub opaque_background: bool,

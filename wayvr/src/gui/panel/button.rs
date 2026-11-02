@@ -390,12 +390,66 @@ pub(super) fn setup_custom_button<S: 'static>(
                         return;
                     }
 
+                    // switches light up while their feature is on
+                    let lit: Option<fn(&super::trackers::TrackerStatus) -> bool> = match &*arg {
+                        "toggle tpose" => Some(|s| s.tpose),
+                        "toggle dots" => Some(|s| s.dots),
+                        "override" => Some(|s| s.override_left.is_some()),
+                        _ => None,
+                    };
+                    if let Some(lit) = lit {
+                        layout.add_event_listener::<AppState, S>(
+                            attribs.widget_id,
+                            EventListenerKind::InternalStateChange,
+                            Box::new({
+                                let button = button.clone();
+                                move |common, _, _, _| {
+                                    let on = super::trackers::status().is_some_and(|s| lit(&s));
+                                    button.set_sticky_state(common, on);
+                                    Ok(EventResult::Pass)
+                                }
+                            }),
+                        );
+                    }
+
                     Box::new(move |_common, data, app, _| {
                         if !test_button(data) || !test_duration(&button, app) {
                             return Ok(EventResult::Pass);
                         }
 
                         super::trackers::send(&arg);
+                        Ok(EventResult::Consumed)
+                    })
+                }
+                "::PluginPress" => {
+                    let id: Arc<str> = args.collect::<Vec<_>>().join(" ").into();
+                    if id.is_empty() {
+                        log_cmd_missing_arg(parser_state, TAG, name, command);
+                        return;
+                    }
+
+                    if super::plugins::has_state(&id) {
+                        // light the button up while the plugin says it is on
+                        layout.add_event_listener::<AppState, S>(
+                            attribs.widget_id,
+                            EventListenerKind::InternalStateChange,
+                            Box::new({
+                                let button = button.clone();
+                                let id = id.clone();
+                                move |common, _, _, _| {
+                                    button.set_sticky_state(common, super::plugins::is_active(&id));
+                                    Ok(EventResult::Pass)
+                                }
+                            }),
+                        );
+                    }
+
+                    Box::new(move |_common, data, app, _| {
+                        if !test_button(data) || !test_duration(&button, app) {
+                            return Ok(EventResult::Pass);
+                        }
+
+                        super::plugins::press(&id);
                         Ok(EventResult::Consumed)
                     })
                 }

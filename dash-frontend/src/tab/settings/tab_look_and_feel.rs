@@ -16,16 +16,18 @@ use crate::{
 		mount_requires_restart,
 	},
 	util::popup_manager::PopupHolder,
-	views::{ViewUpdateParams, color_palettes},
+	views::{ViewUpdateParams, color_palettes, theme_editor},
 };
 
 #[derive(Clone)]
 enum Task {
 	OpenColorPalettes,
+	OpenThemeEditor,
 }
 
 pub struct State {
 	popup_color_palettes: PopupHolder<color_palettes::View>,
+	popup_theme_editor: PopupHolder<theme_editor::View>,
 	frontend_tasks: FrontendTasks,
 	globals: WguiGlobals,
 	tasks: Tasks<Task>,
@@ -34,6 +36,7 @@ pub struct State {
 impl State {
 	pub fn update(&mut self, par: &mut ViewUpdateParams) -> anyhow::Result<()> {
 		self.popup_color_palettes.update(par)?;
+		self.popup_theme_editor.update(par)?;
 
 		for task in self.tasks.drain() {
 			match task {
@@ -42,6 +45,18 @@ impl State {
 						self.frontend_tasks.clone(),
 						self.globals.clone(),
 						self.popup_color_palettes.clone(),
+						par.general_config.color_palette.clone(),
+						{
+							let tasks = self.tasks.clone();
+							Rc::new(move || tasks.push(Task::OpenThemeEditor))
+						},
+					);
+				}
+				Task::OpenThemeEditor => {
+					theme_editor::mount_popup(
+						self.frontend_tasks.clone(),
+						self.globals.clone(),
+						self.popup_theme_editor.clone(),
 						par.general_config.color_palette.clone(),
 					);
 				}
@@ -63,20 +78,20 @@ impl State {
 			"@/dashboard/palette.svg",
 		)?;
 		create_color_palettes_button(par.mp, c, tasks.clone(), &popup)?;
+		create_theme_editor_button(par.mp, c, tasks.clone())?;
 		options_dropdown::<wlx_common::locale::Language>(par.mp, c, &SettingType::Language)?;
 		options_checkbox(par.mp, c, SettingType::OpaqueBackground)?;
-		options_checkbox(par.mp, c, SettingType::HideUsername)?;
 		options_checkbox(par.mp, c, SettingType::HideGrabHelp)?;
 		options_slider_f32(par.mp, c, SettingType::DefaultCurvature, 0.0, 0.5, 0.05)?; // min, max, step
 		options_slider_f32(par.mp, c, SettingType::DefaultOpacity, 0.05, 1.0, 0.05)?; // min, max, step
 		options_slider_f32(par.mp, c, SettingType::DefaultOverlayScale, 0.7, 1.5, 0.05)?; // min, max, step
-		options_dropdown::<wlx_common::config::DefaultPositioning>(par.mp, c, &SettingType::DefaultPositioning)?;
 		options_slider_f32(par.mp, c, SettingType::UiAnimationSpeed, 0.5, 5.0, 0.1)?; // min, max, step
 		options_slider_f32(par.mp, c, SettingType::UiGradientIntensity, 0.0, 1.0, 0.05)?; // min, max, step
 		options_slider_f32(par.mp, c, SettingType::UiRoundMultiplier, 0.1, 5.0, 0.1)?;
 		options_checkbox(par.mp, c, SettingType::Clock12h)?;
 		Ok(State {
 			popup_color_palettes: popup,
+			popup_theme_editor: PopupHolder::default(),
 			frontend_tasks: par.frontend_tasks.clone(),
 			globals: par.mp.doc_params.globals.clone(),
 			tasks,
@@ -113,6 +128,34 @@ fn create_color_palettes_button(
 	}));
 
 	mount_requires_restart(mp.layout, id_cell)?;
+
+	Ok(())
+}
+
+fn create_theme_editor_button(
+	mp: &mut crate::tab::settings::macros::MacroParams,
+	parent: WidgetID,
+	tasks: Tasks<Task>,
+) -> anyhow::Result<()> {
+	let id = mp.idx.to_string();
+	mp.idx += 1;
+
+	let id_cell = horiz_cell(mp.layout, parent)?;
+
+	let mut params = TemplateParams::new();
+	params.insert("id", &id);
+	params.insert("text", "Змішати свої кольори");
+	params.insert("tooltip", "Свій колір кнопок, фону й тексту");
+	params.insert("icon", "@/dashboard/magic_wand.svg");
+
+	mp.parser_state
+		.instantiate_template(mp.doc_params, "ButtonRawText", mp.layout, id_cell, params)?;
+
+	let btn = mp.parser_state.fetch_component_as::<ComponentButton>(&id)?;
+	btn.on_click(Rc::new(move |_common, _e| {
+		tasks.push(Task::OpenThemeEditor);
+		Ok(())
+	}));
 
 	Ok(())
 }

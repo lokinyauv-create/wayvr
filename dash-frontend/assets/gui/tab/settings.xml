@@ -4,7 +4,7 @@
 
   <template name="SettingsGroupBox">
     <rectangle macro="group_box" id="${id}" flex_grow="1">
-      <GroupBoxTitle translation="${translation}" src_builtin="${icon}" />
+      <GroupBoxTitle translation="${translation}" text="${text}" src_builtin="${icon}" />
     </rectangle>
   </template>
 
@@ -22,6 +22,30 @@
       <sprite src_builtin="${icon}" height="24" width="24" />
       <label align="left" translation="${translation}" weight="bold" min_width="200" />
     </Button>
+  </template>
+
+  <template name="ButtonRawText">
+    <Button id="${id}" height="32" tooltip_str="${tooltip}" padding="4" gap="8">
+      <sprite src_builtin="${icon}" height="24" width="24" />
+      <label align="left" text="${text}" weight="bold" min_width="200" />
+    </Button>
+  </template>
+
+  <template name="HintText">
+    <label text="${text}" size="14" color="on_background_variant" wrap="1" max_width="560" />
+  </template>
+
+  <!-- one watch button in "Кнопки годинника": show it or not, move it up/down -->
+  <template name="WatchButtonRow">
+    <div flex_direction="row" align_items="center" gap="6">
+      <Button id="${id}_up" width="36" height="32" tooltip_str="Вище (лівіше на годиннику)">
+        <sprite src_builtin="@/dashboard/up.svg" width="24" height="24" />
+      </Button>
+      <Button id="${id}_down" width="36" height="32" tooltip_str="Нижче (правіше на годиннику)">
+        <sprite src_builtin="@/dashboard/down.svg" width="24" height="24" />
+      </Button>
+      <CheckBox id="${id}_shown" text="${text}" checked="${checked}" />
+    </div>
   </template>
 
   <elements>

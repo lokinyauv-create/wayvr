@@ -14,8 +14,8 @@
 
   <template name="CustomPaletteButton">
     <Button id="custom_btn" width="350" flex_direction="column" justify_content="space_around" padding="16" margin="4" >
-      <label translation="APP_SETTINGS.COLOR_PALETTE_CUSTOM_URL" size="16" weight="bold" />
-      <label translation="APP_SETTINGS.COLOR_PALETTE_CUSTOM_URL2" size="14" color="on_background_variant" />
+      <label text="Змішати свої кольори" size="16" weight="bold" />
+      <label text="Свій колір кнопок, фону й тексту" size="14" color="on_background_variant" />
     </Button>
   </template>
 

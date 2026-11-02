@@ -8,6 +8,8 @@
 > - Slim SteamVR-only "wrist" build: the game's FPS and reprojection shown on the watch, and a trimmed watch and dashboard.
 > - The playspace is never moved from WayVR.
 > - Watch tools: a layout reset (monitors in an arc in front of you), a magnetic keyboard that sticks to monitors, and a panel for [Tracker Calibration](https://github.com/lokinyauv-create/fbt-calibrator).
+> - Watch buttons you can reorder and hide in the dashboard, plus **your own buttons**: any program can add one with a small JSON file (examples in [`contrib/watch-buttons`](contrib/watch-buttons): Discord mic mute, a voice assistant). Buttons light up while their feature is on.
+> - Mix your own color theme in the dashboard («Змішати свої кольори»).
 >
 > **Download:** the AppImage is on the [Releases](../../releases) page.
 >
@@ -139,6 +141,23 @@ Check your left wrist for the watch. The watch is the primary tool for controlli
 The top of the watch shows device batteries, and the bottom shows your overlay controls.
 
 While in edit mode, the watch can also be grabbed and passed between your hands.
+
+**Lokinya's build:** the dashboard section «Кнопки годинника» sets which watch buttons are shown and their order.
+To add your own button, put a JSON file into `~/.config/wayvr/watch-buttons/`:
+
+```json
+{
+  "name": "Discord",
+  "tooltip": "Mute my Discord mic",
+  "icon": "discord-mute.svg",
+  "press": "./discord-mute.sh toggle",
+  "active": "./discord-mute.sh is-muted",
+  "interval_ms": 1000
+}
+```
+
+`press` runs on a click and `active` is polled every `interval_ms`: exit code 0 lights the button up.
+Both run with `sh -c` inside that folder. `icon` (an SVG) is optional. Ready examples are in [`contrib/watch-buttons`](contrib/watch-buttons).
 
 After grabbing, the watch will automatically attach to the hand that's opposite from the one that held it.
 

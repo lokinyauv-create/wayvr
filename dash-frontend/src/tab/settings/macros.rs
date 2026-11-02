@@ -35,6 +35,22 @@ pub fn options_category(
 	mp.parser_state.get_widget_id(&id)
 }
 
+/// Same as `options_category`, with a plain (not translated) title
+pub fn options_category_text(mp: &mut MacroParams, parent: WidgetID, text: &str, icon: &str) -> anyhow::Result<WidgetID> {
+	let id = mp.idx.to_string();
+	mp.idx += 1;
+
+	let mut params = TemplateParams::new();
+	params.insert("text", text);
+	params.insert("icon", icon);
+	params.insert("id", &id);
+
+	mp.parser_state
+		.instantiate_template(mp.doc_params, "SettingsGroupBox", mp.layout, parent, params)?;
+
+	mp.parser_state.get_widget_id(&id)
+}
+
 pub fn options_checkbox(mp: &mut MacroParams, parent: WidgetID, setting: SettingType) -> anyhow::Result<()> {
 	let id = mp.idx.to_string();
 	mp.idx += 1;

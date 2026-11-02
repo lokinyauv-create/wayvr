@@ -24,7 +24,7 @@ use wlx_common::{
 #[derive(Clone)]
 enum Task {
 	SelectPalette(String),
-	CustomPaletteUrl,
+	OpenThemeEditor,
 }
 
 pub struct Params<'a> {
@@ -34,12 +34,14 @@ pub struct Params<'a> {
 	pub frontend_tasks: &'a FrontendTasks,
 	pub on_close_request: Box<dyn FnOnce()>,
 	pub current_palette: Arc<str>,
+	pub open_theme_editor: Rc<dyn Fn()>,
 }
 
 pub struct View {
 	tasks: Tasks<Task>,
-	frontend_tasks: FrontendTasks,
 	on_close_request: Option<Box<dyn FnOnce()>>,
+	frontend_tasks: FrontendTasks,
+	open_theme_editor: Rc<dyn Fn()>,
 }
 
 impl ViewTrait for View {
@@ -59,10 +61,11 @@ impl ViewTrait for View {
 						c();
 					}
 				}
-				Task::CustomPaletteUrl => {
-					self.frontend_tasks.push(FrontendTask::OpenURL(
-						"https://wayvr.org/docs/basics/customization/".into(),
-					));
+				Task::OpenThemeEditor => {
+					if let Some(c) = self.on_close_request.take() {
+						c();
+					}
+					(self.open_theme_editor)();
 				}
 			}
 		}
@@ -225,7 +228,7 @@ impl View {
 		let tasks_clone = tasks.clone();
 		btn.on_click(Rc::new({
 			move |_common, _e| {
-				tasks_clone.push(Task::CustomPaletteUrl);
+				tasks_clone.push(Task::OpenThemeEditor);
 				Ok(())
 			}
 		}));
@@ -234,6 +237,7 @@ impl View {
 			tasks,
 			frontend_tasks: params.frontend_tasks.clone(),
 			on_close_request: Some(params.on_close_request),
+			open_theme_editor: params.open_theme_editor,
 		})
 	}
 }
@@ -243,6 +247,7 @@ pub fn mount_popup(
 	globals: WguiGlobals,
 	popup: PopupHolder<View>,
 	current_palette: Arc<str>,
+	open_theme_editor: Rc<dyn Fn()>,
 ) {
 	frontend_tasks
 		.clone()
@@ -257,6 +262,7 @@ pub fn mount_popup(
 					frontend_tasks: &frontend_tasks,
 					current_palette,
 					on_close_request,
+					open_theme_editor: open_theme_editor.clone(),
 				})?;
 
 				popup.set_view(data.handle, view, None);

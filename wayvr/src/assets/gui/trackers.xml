@@ -22,16 +22,22 @@
         </rectangle>
 
         <rectangle macro="decorative_rect" flex_direction="column" gap="6">
+          <label text="Світиться — увімкнено" size="14" color="on_background_variant" align="center" />
           <TrackerButton cmd="override" text="VRChat: у будь-якій позі (30 с)" />
-          <TrackerButton cmd="toggle tpose" text="Перемкнути Т-позу" />
-          <label text="" _source="trackers" _display="tpose" size="14" color="on_background_variant" align="center" />
-          <TrackerButton cmd="toggle dots" text="Перемкнути кульки" />
-          <label text="" _source="trackers" _display="dots" size="14" color="on_background_variant" align="center" />
+          <TrackerButton cmd="toggle tpose" text="Калібрування Т-позою" />
+          <TrackerButton cmd="toggle dots" text="Кульки на трекерах" />
+        </rectangle>
+
+        <rectangle macro="decorative_rect" flex_direction="column" gap="6">
+          <label text="Відстань між ногами" size="14" color="on_background_variant" align="center" />
           <div flex_direction="row" gap="6">
             <TrackerButton cmd="stance -2" text="◀ Ближче" />
             <TrackerButton cmd="stance +2" text="Ширше ▶" />
           </div>
           <label text="" _source="trackers" _display="stance" size="14" color="on_background_variant" align="center" />
+        </rectangle>
+
+        <rectangle macro="decorative_rect" flex_direction="column" gap="6">
           <TrackerButton cmd="reset" text="Скинути калібрування" />
         </rectangle>
       </div>
