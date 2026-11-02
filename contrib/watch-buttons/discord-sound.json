@@ -1,0 +1,8 @@
+{
+  "name": "Навушники",
+  "tooltip": "Вимкнути / увімкнути звук у Discord — нікого не чути (світиться — вимкнено)",
+  "icon": "discord-sound.svg",
+  "press": "./discord-mute.py deaf-toggle",
+  "active": "./discord-mute.py is-deaf",
+  "interval_ms": 1500
+}

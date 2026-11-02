@@ -35,7 +35,7 @@ Commands run with `sh -c` inside this folder. Keep `active` cheap: it runs all t
 
 Install the examples: `curl -fsSL https://raw.githubusercontent.com/lokinyauv-create/wayvr/lokinya-build/get.sh | bash -s -- --buttons`
 
-## Discord mute (`discord-mute.*`)
+## Discord mic and headphones (`discord-mute.*`, `discord-sound.*`)
 
 Mutes your mic **in Discord itself**: the mic is crossed out and everyone sees it.
 It uses Discord's local RPC, so it needs your own (free) Discord application once:
@@ -49,12 +49,16 @@ A small helper keeps one connection to Discord and follows its mute state, so th
 never floods Discord with requests. The same command works for any hotkey or mouse button:
 `discord-mute.py toggle`.
 
+`discord-sound.*` is a second button for **deafen** (Discord's red headphones: you hear no one
+and you are muted too): `discord-mute.py deaf-toggle` / `is-deaf`.
+
 **Українською:** кнопка вимикає мікрофон **у самому Discord** (усі бачать перекреслений
 мікрофон). Один раз: створи застосунок на <https://discord.com/developers/applications>
 (New Application → Create), в OAuth2 увімкни **Public Client**, додай redirect
 `http://localhost`, збережи. Потім запусти `discord-mute.py setup`, встав Client ID і натисни
 в Discord «Авторизувати». Ту саму команду `discord-mute.py toggle` можна повісити на кнопку
-миші чи клавішу.
+миші чи клавішу. Кнопка `discord-sound` — **«Навушники»**: вимикає звук у Discord (червоні
+навушники, нікого не чути), команда `discord-mute.py deaf-toggle`.
 
 ## Freya (`freya.*`)
 

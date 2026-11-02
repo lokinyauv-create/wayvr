@@ -5,6 +5,8 @@
     discord-mute.py setup     — один раз: підключити (Discord попросить «Авторизувати»)
     discord-mute.py toggle    — перемкнути мікрофон
     discord-mute.py is-muted  — код 0, якщо мікрофон у Discord вимкнено
+    discord-mute.py deaf-toggle — вимкнути / увімкнути звук (червоні навушники)
+    discord-mute.py is-deaf   — код 0, якщо звук у Discord вимкнено
     discord-mute.py helper    — (сам запускається) тримає одне з'єднання з Discord
 
 Для RPC потрібен свій «застосунок» Discord (Developer Portal → New Application).
@@ -211,8 +213,8 @@ def start_helper():
 
 
 def run_helper():
-    """Keeps one connection to Discord and remembers the mic state from Discord's own
-    VOICE_SETTINGS_UPDATE events, so the watch can ask every second without bothering
+    """Keeps one connection to Discord and remembers the mic and sound state from Discord's
+    own VOICE_SETTINGS_UPDATE events, so the watch can ask every second without bothering
     Discord. Quits when Discord closes; the watch starts it again when needed."""
     import fcntl
     import selectors
@@ -230,7 +232,8 @@ def run_helper():
     server.listen(4)
     try:
         rpc = connect()
-        muted = bool(rpc.call("GET_VOICE_SETTINGS").get("mute"))
+        voice = rpc.call("GET_VOICE_SETTINGS")
+        state = {"mute": bool(voice.get("mute")), "deaf": bool(voice.get("deaf"))}
         rpc.call("SUBSCRIBE", {}, evt="VOICE_SETTINGS_UPDATE")
         rpc.sock.settimeout(None)
         sel = selectors.DefaultSelector()
@@ -241,20 +244,36 @@ def run_helper():
                 if key.fileobj is rpc.sock:
                     msg = rpc.recv()
                     if msg.get("evt") == "VOICE_SETTINGS_UPDATE":
-                        muted = bool(msg["data"].get("mute"))
+                        for k in state:
+                            if k in msg["data"]:
+                                state[k] = bool(msg["data"][k])
                     continue
                 client, _ = server.accept()
                 with client:
                     client.settimeout(3)
-                    request = client.recv(64).decode().strip()
-                    if request == "toggle":
+                    # "state mute", "toggle deaf", ...
+                    action, _, what = client.recv(64).decode().strip().partition(" ")
+                    what = what if what in state else "mute"
+                    if action == "toggle":
                         rpc.sock.settimeout(5)
-                        muted = bool(rpc.call("SET_VOICE_SETTINGS", {"mute": not muted}).get("mute", not muted))
+                        answer = rpc.call("SET_VOICE_SETTINGS", {what: not state[what]})
                         rpc.sock.settimeout(None)
-                    client.sendall(b"1" if muted else b"0")
+                        for k in state:
+                            if k in answer:
+                                state[k] = bool(answer[k])
+                    client.sendall(b"1" if state[what] else b"0")
     finally:
         server.close()
         HELPER.unlink(missing_ok=True)
+
+
+COMMANDS = {
+    # command: (helper request, Ukrainian help)
+    "toggle": ("toggle mute", "мікрофон"),
+    "is-muted": ("state mute", ""),
+    "deaf-toggle": ("toggle deaf", "звук (навушники)"),
+    "is-deaf": ("state deaf", ""),
+}
 
 
 def main():
@@ -266,16 +285,17 @@ def main():
         print("Готово: кнопка Discord на годиннику підключена.")
     elif cmd == "helper":
         run_helper()
-    elif cmd in ("toggle", "is-muted"):
+    elif cmd in COMMANDS:
         if not TOKEN.exists():
             sys.exit(1)  # not set up yet
-        answer = helper("toggle" if cmd == "toggle" else "state")
+        request = COMMANDS[cmd][0]
+        answer = helper(request)
         if answer is None:
             start_helper()
-            if cmd == "toggle":
+            if request.startswith("toggle"):
                 for _ in range(20):
                     time.sleep(0.25)
-                    answer = helper("toggle")
+                    answer = helper(request)
                     if answer is not None:
                         break
         sys.exit(0 if answer == "1" else 1)

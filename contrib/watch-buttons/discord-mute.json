@@ -1,5 +1,5 @@
 {
-  "name": "Discord",
+  "name": "Мікрофон",
   "tooltip": "Вимкнути / увімкнути мікрофон у Discord (світиться — вимкнено)",
   "icon": "discord-mute.svg",
   "press": "./discord-mute.py toggle",
