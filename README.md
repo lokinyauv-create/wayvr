@@ -8,7 +8,7 @@
 > - Slim SteamVR-only "wrist" build: the game's FPS and reprojection shown on the watch, and a trimmed watch and dashboard.
 > - The playspace is never moved from WayVR.
 > - Watch tools: a layout reset (monitors in an arc in front of you), a magnetic keyboard that sticks to monitors, and a panel for [Tracker Calibration](https://github.com/lokinyauv-create/fbt-calibrator).
-> - Watch buttons you can reorder and hide in the dashboard, plus **your own buttons**: any program can add one with a small JSON file (examples in [`contrib/watch-buttons`](contrib/watch-buttons): Discord mic mute, a voice assistant). Buttons light up while their feature is on.
+> - Watch buttons you can reorder and hide in the dashboard, plus **your own buttons**: any program can add one with a small JSON file (examples in [`contrib/watch-buttons`](contrib/watch-buttons): Discord mute through Discord's own RPC, a voice assistant). Buttons light up while their feature is on.
 > - Mix your own color theme in the dashboard («Змішати свої кольори»).
 >
 > **Download:** the AppImage is on the [Releases](../../releases) page.

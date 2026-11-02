@@ -113,7 +113,7 @@
         </rectangle>
 
         <!-- Buttons: built-in ones and the user's own (see wlx_common::watch_buttons) -->
-        <div id="buttons_root" flex_direction="row" flex_wrap="wrap" gap="6" justify_content="center">
+        <div id="buttons_root" flex_direction="row" flex_wrap="wrap" gap="6" justify_content="start">
           <!-- Will populate tags at runtime -->
         </div>
 

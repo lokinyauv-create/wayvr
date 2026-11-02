@@ -92,6 +92,7 @@ pub fn press(id: &str) {
         return;
     };
 
+    log::info!("Watch button {id}: running {cmd:?}");
     let id = id.to_string();
     let _ = thread::Builder::new()
         .name("watch-button".into())
@@ -152,5 +153,31 @@ fn worker() {
             }
             thread::sleep(POLL / 5);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn press_runs_command_and_poll_sees_state() {
+        let marker = std::env::temp_dir().join("wayvr-plugin-test-marker");
+        let _ = std::fs::remove_file(&marker);
+        let plugin = WatchPlugin {
+            name: "t".into(),
+            tooltip: None,
+            icon: None,
+            press: format!("touch '{}'", marker.display()),
+            active: Some(format!("test -f '{}'", marker.display())),
+            interval_ms: 100,
+        };
+        set_plugins(&[("plugin:t".into(), plugin)]);
+        assert!(has_state("plugin:t"));
+        press("plugin:t");
+        thread::sleep(Duration::from_millis(800));
+        assert!(marker.exists(), "press did not run");
+        assert!(is_active("plugin:t"), "poller did not see the state");
+        let _ = std::fs::remove_file(&marker);
     }
 }

@@ -2,7 +2,7 @@
   "name": "Discord",
   "tooltip": "Вимкнути / увімкнути мікрофон у Discord (світиться — вимкнено)",
   "icon": "discord-mute.svg",
-  "press": "./discord-mute.sh toggle",
-  "active": "./discord-mute.sh is-muted",
-  "interval_ms": 1000
+  "press": "./discord-mute.py toggle",
+  "active": "./discord-mute.py is-muted",
+  "interval_ms": 1500
 }
