@@ -22,7 +22,7 @@ mkdir -p "$HOME/Applications"
 echo "Downloading WayVR (Lokinya's build)… / Завантажую WayVR (збірка Lokinya)…"
 TMP="$(mktemp "$HOME/Applications/.wayvr-XXXXXX")"; trap 'rm -f "$TMP"' EXIT
 curl -fL --progress-bar "https://github.com/$REPO/releases/latest/download/$ASSET" -o "$TMP"
-chmod +x "$TMP"
+chmod 755 "$TMP"
 [ -f "$DEST" ] && mv -f "$DEST" "$DEST.bak"   # a running AppImage can't be overwritten
 mv "$TMP" "$DEST"
 trap - EXIT
