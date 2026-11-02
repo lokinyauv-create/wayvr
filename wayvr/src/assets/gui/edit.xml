@@ -48,10 +48,10 @@
                 <div width="8" height="100%" />
                 <TopButtonTertiary src="@/edit/check.svg" tooltip="EDIT_MODE.LEAVE" press="::EditToggle" />
               </div>
-              <div id="tab_none" display="none" height="100">
+              <div id="tab_none" display="none" height="130">
                 <label align="center" translation="EDIT_MODE.HINT_POINT_WINDOW" />
               </div>
-              <div id="tab_pos" display="none" height="100" flex_direction="column">
+              <div id="tab_pos" display="none" height="130" flex_direction="column">
                 <div padding="8" gap="8" justify_content="center" align_items="center">
                   <PosButton id="pos_static" src="@/edit/pin.svg" tooltip="EDIT_MODE.POS_STATIC" press="::EditModeSetPos static" />
                   <PosButton id="pos_anchored" src="@/edit/anchor.svg" tooltip="EDIT_MODE.POS_ANCHORED" press="::EditModeSetPos anchored" />
@@ -60,19 +60,19 @@
                   <PosButton id="pos_hand_l" src="@/watch/controller_l.svg" tooltip="EDIT_MODE.POS_HAND_L" press="::EditModeSetPos hand_l" />
                   <PosButton id="pos_hand_r" src="@/watch/controller_r.svg" tooltip="EDIT_MODE.POS_HAND_R" press="::EditModeSetPos hand_r" />
                 </div>
-                <div flex_direction="row" gap="8" justify_content="center" align_items="center">
-                  <div id="pos_interpolation" gap="6">
+                <!-- one line each, so nothing runs off the panel -->
+                <div flex_direction="column" gap="6" justify_content="center" align_items="center">
+                  <div id="pos_interpolation" gap="6" align_items="center">
                     <label translation="EDIT_MODE.INTERPOLATION" />
                     <Slider id="lerp_slider" width="250" height="16" min_value="0.05" max_value="1" value="1" step="0.05" />
                   </div>
                   <div id="pos_global" gap="16" justify_content="center" align_items="center">
-                    <CheckBox id="global_box" translation="EDIT_MODE.GLOBAL" tooltip_side="bottom" />
-                    <CheckBox id="align_box" translation="EDIT_MODE.ALIGN_TO_HMD" tooltip_side="bottom" />
-                    <CheckBox id="block_input_box" translation="EDIT_MODE.BLOCK_INPUT" tooltip_side="bottom" />
+                    <CheckBox id="align_box" translation="EDIT_MODE.ALIGN_TO_HMD" tooltip="EDIT_MODE.ALIGN_TO_HMD_HELP" tooltip_side="bottom" />
+                    <CheckBox id="block_input_box" translation="EDIT_MODE.BLOCK_INPUT" tooltip="EDIT_MODE.BLOCK_INPUT_HELP" tooltip_side="bottom" />
                   </div>
                 </div>
               </div>
-              <div id="tab_stereo" display="none" height="100" flex_direction="column">
+              <div id="tab_stereo" display="none" height="130" flex_direction="column">
                 <div padding="8" gap="8" justify_content="center" align_items="center">
                   <PosButton id="stereo_none" src="@/edit/close.svg" tooltip="DISABLED" press="::EditModeSetStereo none" />
                   <PosButton id="stereo_leftright" src="@/edit/3d_leftright.svg" tooltip="EDIT_MODE.STEREO_3D_MODE.SPLIT_LEFT_RIGHT" press="::EditModeSetStereo leftright" />
@@ -85,7 +85,7 @@
                   <CheckBox id="stereo_adjust_mouse_box" translation="EDIT_MODE.STEREO_3D_MODE.ADJUST_MOUSE" tooltip_side="top" />
                 </div>
               </div>
-              <div id="tab_mouse" display="none" height="100" flex_direction="column">
+              <div id="tab_mouse" display="none" height="130" flex_direction="column">
                 <div padding_left="8" padding_right="8" gap="8" justify_content="center" align_items="center">
                   <PosButton id="mouse_default" src="@/edit/close.svg" tooltip="DEFAULT" press="::EditModeSetMouse default" />
                   <PosButton id="mouse_normal" src="@/edit/normal.svg" tooltip="EDIT_MODE.MOUSE.NORMAL" press="::EditModeSetMouse normal" />
@@ -101,17 +101,16 @@
                   <label align="center" translation="EDIT_MODE.MOUSE.WRONG_SCREEN_SELECTION_HELP" />
                 </div>
               </div>
-              <div id="tab_alpha" display="none" height="100" padding="8" gap="8" justify_content="center" align_items="center">
+              <div id="tab_alpha" display="none" height="130" padding="8" gap="8" justify_content="center" align_items="center">
                 <div width="100%" padding="8" gap="8" justify_content="center" align_items="center">
                   <label translation="EDIT_MODE.OPACITY" />
                   <Slider id="alpha_slider" width="200" height="16" min_value="0.1" max_value="1" value="1" step="0.05" />
                 </div>
                 <div width="100%" padding="8" gap="8" justify_content="center" align_items="center">
-                  <CheckBox id="additive_box" translation="EDIT_MODE.BLENDING_ADDITIVE" tooltip="EDIT_MODE.ALPHA_BLEND_MODE" tooltip_side="bottom" />
                   <CheckBox id="angle_fade_box" translation="EDIT_MODE.ANGLE_FADE" tooltip="EDIT_MODE.ANGLE_FADE_HELP" tooltip_side="bottom" />
                 </div>
               </div>
-              <div id="tab_curve" display="none" height="100" flex_direction="column">
+              <div id="tab_curve" display="none" height="130" flex_direction="column">
                 <div padding="8" gap="8" justify_content="center" align_items="center">
                   <label translation="EDIT_MODE.CURVATURE" />
                   <Slider id="curve_slider" width="250" height="16" min_value="0" max_value="0.5" value="0.15" step="0.01" />

@@ -1216,20 +1216,21 @@ impl<T> OverlayWindowManager<T> {
     }
 
     /// Puts the screens (in an arc) and the keyboard (under the middle screen)
-    /// in front of where the user is looking, upright and facing them.
+    /// where the user is looking, up or down too, facing them. Only the head's
+    /// sideways tilt is left out, so the screens are never crooked.
     /// Hidden screens and a hidden keyboard are moved too but stay hidden:
     /// they show up at the new place when they are turned on.
     fn reset_layout(&mut self, app: &mut AppState) -> anyhow::Result<()> {
         let hmd = app.input_state.hmd;
-        let flat = |v: Vec3A| Vec3A::new(v.x, 0.0, v.z);
-        let mut back = flat(hmd.z_axis);
-        if back.length_squared() < 1e-4 {
-            // looking straight down: the top of the head points forward
-            back = -flat(hmd.y_axis);
+        let back = hmd.z_axis.normalize_or(Vec3A::Z);
+        let mut right = Vec3A::Y.cross(back);
+        if right.length_squared() < 1e-4 {
+            // looking straight up or down: keep the head's own left-right
+            right = Vec3A::new(hmd.x_axis.x, 0.0, hmd.x_axis.z);
         }
-        let back = back.normalize_or(Vec3A::Z);
-        let right = Vec3A::Y.cross(back).normalize();
-        let gaze = Affine3A::from_cols(right, Vec3A::Y, back, hmd.translation);
+        let right = right.normalize_or(Vec3A::X);
+        let up = back.cross(right);
+        let gaze = Affine3A::from_cols(right, up, back, hmd.translation);
 
         let mut shown: Vec<(OverlayID, Arc<str>)> = Vec::new();
         let mut hidden: Vec<(OverlayID, Arc<str>)> = Vec::new();

@@ -7,7 +7,7 @@
 
   <template name="TrackerButton">
     <Button macro="button_style" _press="::TrackerCmd ${cmd}" width="100%">
-      <label text="${text}" size="18" weight="bold" />
+      <label text="${text}" size="16" weight="bold" />
     </Button>
   </template>
 

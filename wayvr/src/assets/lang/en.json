@@ -92,7 +92,9 @@
 			"SPLIT_RIGHT_LEFT": "RIGHT→LEFT",
 			"SPLIT_TOP_BOTTOM": "TOP→BOTTOM",
 			"TITLE": "3D Stereo Mode"
-		}
+		},
+		"ALIGN_TO_HMD_HELP": "When the window appears it turns to face you",
+		"BLOCK_INPUT_HELP": "While pointing at this window, presses don't reach the game"
 	},
 	"ALTTAB": {
 		"RELEASE_TO_FOCUS": "Aim at an app and release Super to focus that app.",

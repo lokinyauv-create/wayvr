@@ -55,10 +55,10 @@ pub struct WatchButton {
 
 /// Built-in buttons in their default order: id and the name shown in the dashboard
 pub const BUILTIN: &[(&str, &str)] = &[
-	("center", "Центрувати (монітори й клавіатуру перед собою)"),
+	("center", "Центрувати (монітори й клавіатуру туди, куди дивишся)"),
 	("keyboard", "Клавіатура"),
 	("trackers", "Калібрування трекерів"),
-	("dashboard", "Налаштування"),
+	("dashboard", "Параметри (ця панель)"),
 	("edit", "Редагування вікон"),
 ];
 

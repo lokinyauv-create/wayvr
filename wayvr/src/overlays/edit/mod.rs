@@ -542,9 +542,7 @@ fn make_edit_panel(app: &mut AppState) -> anyhow::Result<EditModeWrapPanel> {
         &["none", "pos", "alpha", "curve", "stereo", "mouse"],
     )?;
 
-    set_up_checkbox(&mut panel, "additive_box", cb_assign_additive)?;
     set_up_checkbox(&mut panel, "align_box", cb_assign_align)?;
-    set_up_checkbox(&mut panel, "global_box", cb_assign_global)?;
     set_up_checkbox(&mut panel, "angle_fade_box", cb_assign_angle_fade)?;
     set_up_checkbox(&mut panel, "block_input_box", cb_assign_block_input)?;
     set_up_checkbox(
@@ -596,18 +594,8 @@ fn reset_panel(
 
     let c = panel
         .parser_state
-        .fetch_component_as::<ComponentCheckbox>("additive_box")?;
-    c.set_checked(&mut com, state.additive);
-
-    let c = panel
-        .parser_state
         .fetch_component_as::<ComponentCheckbox>("align_box")?;
     c.set_checked(&mut com, state.align_to_hmd);
-
-    let c = panel
-        .parser_state
-        .fetch_component_as::<ComponentCheckbox>("global_box")?;
-    c.set_checked(&mut com, owc.global);
 
     let c = panel
         .parser_state
@@ -714,19 +702,10 @@ fn cb_assign_curve(_app: &mut AppState, owc: &mut OverlayWindowConfig, curvature
     };
 }
 
-const fn cb_assign_additive(_app: &mut AppState, owc: &mut OverlayWindowConfig, additive: bool) {
-    owc.dirty = true;
-    owc.active_state.as_mut().unwrap().additive = additive;
-}
-
 const fn cb_assign_align(_app: &mut AppState, owc: &mut OverlayWindowConfig, align: bool) {
     owc.dirty = true;
     let active_state = owc.active_state.as_mut().unwrap();
     active_state.align_to_hmd = align;
-}
-
-const fn cb_assign_global(_app: &mut AppState, owc: &mut OverlayWindowConfig, global: bool) {
-    owc.global = global;
 }
 
 const fn cb_assign_angle_fade(
